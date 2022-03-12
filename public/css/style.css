@@ -1,0 +1,23 @@
+*{
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    background-color: rgb(193, 150, 233);
+    font-family: Verdana, Geneva, Tahoma, sans-serif;
+}
+
+table, th, td{
+    border: 1px solid black;
+}
+
+table.center{
+    margin-left: auto;
+    margin-right: auto;
+}
+
+section{
+    margin-bottom: 20px;
+}
