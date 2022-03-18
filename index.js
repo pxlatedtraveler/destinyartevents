@@ -8,8 +8,9 @@ const readline = require('readline');
 const {google} = require('googleapis');
 
 //
-//EXPRESS START
+//EXPRESS
 //
+
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -19,23 +20,23 @@ app.use(express.json({ limit: '1mb' }));
 
 // Data to send
 const dataToSend = {
-  rows: ''
+  rows: '',
+  other: 'Sort of working I guess...'
 };
 
 app.post('/api', (request, response) => {
   console.log('I got a request!');
   console.log(request.body); //aka FrontData
+  
+  grabParticipants();
 
-  //move fs.readFile here
-
+  // Response data should be populated by grabParticipants.
   response.json(dataToSend);
 })
 
 //
 //GOOGLE
 //
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
-const TOKEN_PATH = 'token.json';
 
 // Load client secrets from a local file.
 fs.readFile('credentials.json', (err, content) => {
@@ -43,6 +44,9 @@ fs.readFile('credentials.json', (err, content) => {
   // Authorize a client with credentials, then call the Google Sheets API.
   authorize(JSON.parse(content), grabParticipants);
 });
+
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
+const TOKEN_PATH = 'token.json';
 
 
 //////////////////////////////////////////////////

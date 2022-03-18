@@ -1,4 +1,5 @@
 const frontData = {content: 'Stuff to send from the Front!'};
+let dataReceived;
 
 const options = {
   method: 'POST',
@@ -17,6 +18,14 @@ function fetchApi () {
     .then((backData) => {
       console.log(backData);
       console.log(backData.rows);
+      dataReceived = backData;
     }))
+}
+
+const repostButton = document.getElementById("dataRepost");
+repostButton.addEventListener("click", repostData)
+
+function repostData () {
+    console.log(dataReceived);
 }
 
