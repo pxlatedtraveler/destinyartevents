@@ -14,21 +14,32 @@ const {google} = require('googleapis');
 const app = express();
 const port = process.env.PORT || 3000;
 
-app.listen(port, () => console.log('listening  at 3000'));
+app.listen(port, () => {
+  console.log('listening at 3000');
+  app.emit('serverready');
+});
 app.use(express.static('public'));
 app.use(express.json({ limit: '1mb' }));
 
 // Data to send
 const dataToSend = {
-  rows: '',
-  other: 'Sort of working I guess...'
+  names: '',
+  giftTypes: '',
+  giftsOk: '',
+  blocked: '',
+  dataStatus: 'not ready'
 };
 
 app.post('/api', (request, response) => {
-  console.log('I got a request!');
-  console.log(request.body); //aka FrontData
-  
-  grabParticipants();
+  // Requested data
+  console.log(request.body);
+
+  if (dataToSend.names) {
+    dataToSend.dataStatus = 'ready';
+  }
+  else {
+    response.end();
+  }
 
   // Response data should be populated by grabParticipants.
   response.json(dataToSend);
@@ -112,22 +123,39 @@ function getNewToken(oAuth2Client, callback) {
  * @param {google.auth.OAuth2} auth The authenticated Google OAuth client.
  */
 function grabParticipants(auth) {
-  const sheets = google.sheets({version: 'v4', auth});
-  sheets.spreadsheets.values.get({
-    spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
-    range: 'Participants!A2:B',
-  }, (err, res) => {
-    if (err) return console.log('The API returned an error: ' + err);
-    const rows = res.data.values;
-    if (rows.length) {
-      dataToSend.rows = rows;
-      console.log('Name, Gift Type:');
-      // Print columns A and E, which correspond to indices 0 and 4.
-      rows.map((row) => {
-        console.log(`${row[0]}, ${row[1]}`);
-      });
-    } else {
-      console.log('No data found.');
-    }
-  });
+    const sheets = google.sheets({version: 'v4', auth});
+    sheets.spreadsheets.values.get({
+      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
+      range: 'Participants!A2:A',
+    }, (err, res) => {
+      if (err) console.log(err);
+      const names = res.data.values;
+      dataToSend.names = names;
+      console.log(names);
+    });
+    sheets.spreadsheets.values.get({
+      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
+      range: 'Participants!B2:B',
+    }, (err, res) => {
+      if (err) console.log(err);
+      const giftTypes = res.data.values;
+      dataToSend.giftTypes = giftTypes;
+    });
+    sheets.spreadsheets.values.get({
+      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
+      range: 'Gifts Ok!B2:D',
+    }, (err, res) => {
+      if (err) console.log(err);
+      const giftsOk = res.data.values;
+      dataToSend.giftsOk = giftsOk;
+    });
+    sheets.spreadsheets.values.get({
+      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
+      range: 'Block!B2:F',
+    }, (err, res) => {
+      if (err) console.log(err);
+      const blocked = res.data.values;
+      dataToSend.blocked = blocked;
+    });
 }
+
