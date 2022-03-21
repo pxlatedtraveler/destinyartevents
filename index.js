@@ -23,10 +23,12 @@ app.use(express.json({ limit: '1mb' }));
 
 // Data to send
 const dataToSend = {
-  names: '',
-  giftTypes: '',
-  giftsOk: '',
-  blocked: '',
+  participants: {
+    names: '',
+    giftTypes: '',
+    giftsOk: '',
+    blocked: '',
+  },
   dataStatus: 'not ready'
 };
 
@@ -34,7 +36,9 @@ app.post('/api', (request, response) => {
   // Requested data
   console.log(request.body);
 
-  if (dataToSend.names) {
+  const participants = dataToSend.participants;
+
+  if (participants.names && participants.giftTypes && participants.giftsOk) {
     dataToSend.dataStatus = 'ready';
   }
   else {
@@ -123,6 +127,7 @@ function getNewToken(oAuth2Client, callback) {
  * @param {google.auth.OAuth2} auth The authenticated Google OAuth client.
  */
 function grabParticipants(auth) {
+    const participants = dataToSend.participants;
     const sheets = google.sheets({version: 'v4', auth});
     sheets.spreadsheets.values.get({
       spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
@@ -130,7 +135,7 @@ function grabParticipants(auth) {
     }, (err, res) => {
       if (err) console.log(err);
       const names = res.data.values;
-      dataToSend.names = names;
+      participants.names = names;
       console.log(names);
     });
     sheets.spreadsheets.values.get({
@@ -139,7 +144,7 @@ function grabParticipants(auth) {
     }, (err, res) => {
       if (err) console.log(err);
       const giftTypes = res.data.values;
-      dataToSend.giftTypes = giftTypes;
+      participants.giftTypes = giftTypes;
     });
     sheets.spreadsheets.values.get({
       spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
@@ -147,7 +152,7 @@ function grabParticipants(auth) {
     }, (err, res) => {
       if (err) console.log(err);
       const giftsOk = res.data.values;
-      dataToSend.giftsOk = giftsOk;
+      participants.giftsOk = giftsOk;
     });
     sheets.spreadsheets.values.get({
       spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
@@ -155,7 +160,7 @@ function grabParticipants(auth) {
     }, (err, res) => {
       if (err) console.log(err);
       const blocked = res.data.values;
-      dataToSend.blocked = blocked;
+      participants.blocked = blocked;
     });
 }
 
