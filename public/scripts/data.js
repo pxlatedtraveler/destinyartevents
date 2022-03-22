@@ -59,10 +59,3 @@ async function fetchApi () {
     }
 }
 
-const repostButton = document.getElementById("dataRepost");
-repostButton.addEventListener("click", repostData)
-
-function repostData () {
-    console.log(dataReceived);
-}
-

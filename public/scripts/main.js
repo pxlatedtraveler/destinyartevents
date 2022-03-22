@@ -15,22 +15,14 @@
  * //Author: Ruby || PxlatedTraveler
  */
 
-import Member from './Member.js'
-window.testingScope = null;// = 'working scope!';
+import Member from './Member.js';
+import { createTableHead, createTable } from './Tables.js';
+
 let participantData;
 
 let forAdminAttention = []; //USERS WHO'LL NEED ADMIN ATTENTION
 
-const participants =
-[
-    new Member("ace", 0, true, false, false, ["dan", "fig"]),
-    new Member("bee", 0, true, true, true, ["cat", "fig"]),
-    new Member("cat", 1, true, true, false, ["fig"]),
-    new Member("dan", 2, true, true, true, ["elf", "fig"]),
-    new Member("elf", 1, false, true, false, ["hat", "fig"]),
-    new Member("fig", 0, true, false, true, []),
-    new Member("gal", 0, true, true, true, ["fig"])
-];
+const participants = [];
 
 function reset ()
 {
@@ -284,16 +276,12 @@ function spliceCompatibles (user, noGifter)
             }
             //IF STRAGGLER IS ONLY MISSING GIFTEE
             else if (!user.giftee && user.gifter){
-                //FOR EVERY PARTICIPANT MISSING JUST A USER THERE IS ONE MISSING A GIFTER
+                //FOR EVERY PARTICIPANT MISSING JUST A GIFTEE THERE IS ONE MISSING A GIFTER
                 //USER'S GIFTER NEEDS TO BE ABLE TO GIFT ONE OF THE STRAGGLERS MISSING GIFTER
                 //BASICALLY WHEN THIS IS THE CASE AND NOT ABOVE, THE CYCLE OF GIFTING IS NOT A CIRCLE BUT A LINE
                 //THE ONE MISSING A GIFTER IS ON THE LEFT END POINT
                 //THE ONE MISSING A GIFTEE IS ON THE RIGHT END POINT (ASSUMING CYCLE GOES CLOCKWISE)
-                //THEREFORE ALL END POINTS THAT ARE ONE OFF AND NOT AS ABOVE MUST BE SORTED
-                //SORTED UNTIL ALL ARE EITHER COMPLETE, OR SOME ARE COMPLETE WHILE THE REST ARE AS ABOVE
-                //BY ABOVE I MEAN USER HAS NO GIFTEE AND NO GIFTER WHICH IS THE NECESSARY STATE FOR USER TO BE IN
-                //FOR A SUCCESSFULL SPLICE
-                //WHICH IS WHAT WE DO BELOW BEFORE ASSIGNING USER THEIR NEW MATCHED GIFEE/GIFTER
+                //THEREFORE ALL END POINTS THAT ARE ONE OFF AND NOT AS ABOVE MUST BE SORTED IF POSSIBLE
                 let canAdoptGifter = [];
                 //HERE WE CHECK ALL THOSE LACKING GIFTERS FOR COMPATIBILITY WITH USERS GIFTER
                 noGifter.forEach((gifterLacking, ind)=>{
@@ -330,17 +318,65 @@ function spliceCompatibles (user, noGifter)
     }
 }
 
+function createParticipatns (data)
+{
+    let names = data.names;
+    let giftTypes = data.giftTypes;
+    let giftsOk = data.giftsOk;
+    let blocked = data.blocked;
+    for (let i = 0; i < names.length; i++){
+        //MEMBER PARAMS TAKE NAME:STRING, GIFTTYPE:INT, GIFTSOK2D BOOL, GIFTSOK3D BOOL, GIFTSOKWRITING BOOL, BAN:[STRING]
+        let newMember = new Member(names[i][0],
+            giftVanityConverter(giftTypes[i][0]),
+            JSON.parse(giftsOk[i][0].toLowerCase()),
+            JSON.parse(giftsOk[i][1].toLowerCase()),
+            JSON.parse(giftsOk[i][2].toLowerCase()),
+            blocked[i]);
+        participants.push(newMember);
+    }
+    console.log(participants);
+}
+
+function giftVanityConverter (value)
+{
+    //SPREADSHEET DATA IS MADE LEGIBLE BY STATING OUTRIGHT IF 2D/3D/WRITING
+    //BUT VALUES 0, 1, 2 ARE UTILIZED TO WORK WITH THE GIFTSOK ARRAY [BOOL, BOOL, BOOL] (to match 2D, 3D, WRITING)
+    //WHERE THIS GIFTTYPE VALUE IS USED AS A MATCHING INDEX VALUE FOR THAT ARRAY.
+    if (value === "2D"){
+        return 0;
+    }
+    else if (value === "3D"){
+        return 1;
+    }
+    else if (value === "WRITING"){
+        return 2;
+    }
+}
+
 //////////////////////////////////////////////////
 //DOM ELEMENTS
 //////////////////////////////////////////////////
+
+//SORT BUTTON SHUFFLES AND MATCHES PARTICIPANTS AT RANDOM
 const sortButton = document.getElementById("sortButton");
 sortButton.disabled = true;
 sortButton.value = 'NOT READY';
 
+//CUSTOM OPTIONAL DATA TO WRITE TO A SHEET CELL
+const customInput = document.getElementById("customInput");
+
+//BUTTON TO (TODO) WRITE TO SHEETS (probably pass data to back end here, then handle PUT request there)
+const postButton = document.getElementById("dataPost");
+postButton.disabled = true;
+
+//SORTING IS DISABLED UNTIL DATA IS RECEIVED FROM BACKEND
 document.addEventListener('dataready', function () {
     participantData = dataReceived.participants;
     console.warn('WE GOTS DATA RIGHT HERE YO!', participantData);
-    sortButton.addEventListener("click", function (){
+    createParticipatns(participantData);
+    //sortButton.removeEventListener("click", sortBtn);
+    console.log(sortButton.getAttribute('click'));//logs Null .... Need to make sure all events are added once
+    sortButton.addEventListener("click", function sortBtn (){
         reset();
         pairAllParticipants();
     
@@ -350,77 +386,15 @@ document.addEventListener('dataready', function () {
     
         createTable(table, participants);
         createTableHead(table, dataKeys);
+
+        postButton.addEventListener("click", function (){//event is registered mutliple times. Use condition.
+            const customValue = customInput.value;
+            //Then something...something...convert Sort data to be compatible with cell values etc
+            //Then send that to backend and have backend grab and use update or batchupdate request to sheets.
+            console.log(customValue);
+        });
+        postButton.disabled = false;
     });
     sortButton.disabled = false;
-    sortButton.value = 'READY SORT';
+    sortButton.value = 'SORT';
 })
-
-
-function createTableHead(table, dataKeys)
-{
-    let thead = table.createTHead();
-    let row = thead.insertRow();
-
-    for (let key of dataKeys){
-        if (!key.startsWith("_")){
-            let th = document.createElement("th");
-            let text = document.createTextNode(key);
-            th.appendChild(text);
-            row.appendChild(th);
-        }
-    }
-}
-
-function createTable(table, object)
-{
-    for (let element of object){
-        let row = table.insertRow();
-        for (object in element){
-
-            if (!object.startsWith("_")){
-                let cell = row.insertCell();
-                let text;
-    
-                //console.log(getKeyByValue(participants[0], element[object])); //GIVES KEY
-                //console.log(element[object]); //GIVES KEY VALUE
-                //console.log(element.giftee); //GIVES PARTICIPANT OBJECT FROM ARRAY
-                //console.log(Object.keys(element));
-    
-                if (getKeyByValue(participants[participants.indexOf(element)], element[object]) === 'giftee'){
-                    if (element[object] !== null){
-                        if (element[object] !== null){
-                            text = document.createTextNode(element.giftee.name);
-                            cell.append(text);
-                        }
-                    }
-                    else{
-                        text = document.createTextNode(element[object]);
-                        cell.appendChild(text);
-                    }
-    
-                }
-                else if (getKeyByValue(participants[participants.indexOf(element)], element[object]) === 'gifter'){
-                    if (element[object] !== null){
-                        if (element[object] !== null){
-                            text = document.createTextNode(element.gifter.name);
-                            cell.append(text);
-                        }
-                    }
-                    else{
-                        text = document.createTextNode(element[object]);
-                        cell.appendChild(text);
-                    }
-                }
-                else{
-                    text = document.createTextNode(element[object]);
-                    cell.appendChild(text);
-                }
-            }
-        }
-    }
-}
-
-function getKeyByValue(object, value)
-{
-    return Object.keys(object).find(key => object[key] === value);
-}

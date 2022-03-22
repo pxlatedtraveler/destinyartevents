@@ -6,6 +6,7 @@ const express = require('express');
 const fs = require('fs');
 const readline = require('readline');
 const {google} = require('googleapis');
+const res = require('express/lib/response');
 
 //
 //EXPRESS
@@ -13,9 +14,14 @@ const {google} = require('googleapis');
 
 const app = express();
 const port = process.env.PORT || 3000;
+const spreadsheet1 = process.env.SPREADSHEET1;
+const nameRange = process.env.NAMERANGE;
+const giftTypeRange = process.env.GIFTTYPERANGE;
+const giftsOkRange = process.env.GIFTSOKRANGE;
+const blockedRange = process.env.BLOCKEDRANGE;
 
-app.listen(port, () => {
-  console.log('listening at 3000');
+app.listen(port || 3000, () => {
+  console.log('listening at', port);
   app.emit('serverready');
 });
 app.use(express.static('public'));
@@ -130,8 +136,8 @@ function grabParticipants(auth) {
     const participants = dataToSend.participants;
     const sheets = google.sheets({version: 'v4', auth});
     sheets.spreadsheets.values.get({
-      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
-      range: 'Participants!A2:A',
+      spreadsheetId: spreadsheet1,
+      range: nameRange,
     }, (err, res) => {
       if (err) console.log(err);
       const names = res.data.values;
@@ -139,28 +145,39 @@ function grabParticipants(auth) {
       console.log(names);
     });
     sheets.spreadsheets.values.get({
-      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
-      range: 'Participants!B2:B',
+      spreadsheetId: spreadsheet1,
+      range: giftTypeRange,
     }, (err, res) => {
       if (err) console.log(err);
       const giftTypes = res.data.values;
       participants.giftTypes = giftTypes;
     });
     sheets.spreadsheets.values.get({
-      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
-      range: 'Gifts Ok!B2:D',
+      spreadsheetId: spreadsheet1,
+      range: giftsOkRange,
     }, (err, res) => {
       if (err) console.log(err);
       const giftsOk = res.data.values;
       participants.giftsOk = giftsOk;
     });
     sheets.spreadsheets.values.get({
-      spreadsheetId: '1_3ZBUPmrnJwtjsZEwJiSvBi-21FPL_42tJwlvZC1tCk',
-      range: 'Block!B2:F',
+      spreadsheetId: spreadsheet1,
+      range: blockedRange,
     }, (err, res) => {
       if (err) console.log(err);
       const blocked = res.data.values;
       participants.blocked = blocked;
     });
+
+    sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheet1,
+      range: 'TEST!A1',
+      valueInputOption: 'USER_ENTERED',
+      resource: {values: [['just a test!']]}
+    }, (err, res) => {
+      if (err) console.log(err);
+      const response = JSON.stringify(res, null, 2);
+      console.log('PUTTING RES:', response);
+    })
 }
 
