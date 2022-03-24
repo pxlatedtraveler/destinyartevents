@@ -38,10 +38,7 @@ const dataToSend = {
   dataStatus: 'not ready'
 };
 
-app.post('/api', (request, response) => {
-  // Requested data
-  console.log(request.body);
-
+app.get('/api', (request, response) => {
   const participants = dataToSend.participants;
 
   if (participants.names && participants.giftTypes && participants.giftsOk) {
@@ -50,9 +47,13 @@ app.post('/api', (request, response) => {
   else {
     response.end();
   }
-
   // Response data should be populated by grabParticipants.
   response.json(dataToSend);
+});
+
+app.post('/api', (request, response) => {
+  console.log(request.body);
+  response.json(request.body);
 })
 
 //
