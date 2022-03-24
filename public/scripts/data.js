@@ -1,14 +1,9 @@
-import { response } from "express";
-
 window.dataReceived = null;
 
-const frontData = {content: 'Stuff to send from the Front!'};
 const tries = 3;
 const interval = 2000;
 
 const dataGet = new Event('dataready');
-
-
 
 const apiButton = document.getElementById("apiButton");
 apiButton.addEventListener("click", getApi);
@@ -53,7 +48,7 @@ async function getApi () {
     }
 }
 
-function postApi (request) {
+async function postApi (request) {
 
     const options = {
         method: 'POST',
@@ -64,16 +59,16 @@ function postApi (request) {
       }
 
     try {
-        const response = fetch('/api', options);
-        if (!response.ok){
-            const text = response.text();
+        const promise = await fetch('/api', options);
+        if (!promise.ok){
+            const text = await promise.text();
             throw Error(text);
         }
-        const jsonResponse = response.json;
+        const jsonResponse = await promise.json();
         console.log(jsonResponse);
     }
     catch(err) {
-        console.log('err:', err, response);
+        console.log('err:', err);
     }
 }
 

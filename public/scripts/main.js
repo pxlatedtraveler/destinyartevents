@@ -199,7 +199,7 @@ document.addEventListener('dataready', function () {
 
             postApi(customData);
 
-            console.log(customValue);
+            console.log(customData);
         };
         postButton.disabled = false;
     };
