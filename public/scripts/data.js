@@ -1,6 +1,6 @@
 window.dataReceived = null;
 
-const tries = 3;
+let tries = 3;
 const interval = 2000;
 
 const dataGet = new Event('dataready');
