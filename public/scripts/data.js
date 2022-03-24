@@ -27,20 +27,20 @@ async function getApi () {
         }
     }
     catch(err) {
-        console.log('err:', err, promise);
+        console.log('err:', err);
     }
     finally {
         if (dataReceived) {
             if (dataReceived.dataStatus === 'not ready' && tries > 0) {
                 tries--;
-                setTimeout(fetchApi, interval);
+                setTimeout(getApi, interval);
                 console.warn('FETCHING AGAIN via not-ready, ATTEMPTS LEFT:', tries);
             }
         }
         else {
             if (tries > 0) {
                 tries--;
-                setTimeout(fetchApi, interval);
+                setTimeout(getApi, interval);
                 console.warn('FETCHING AGAIN via err, ATTEMPTS LEFT:', tries);
             }
         }
@@ -49,7 +49,7 @@ async function getApi () {
 }
 
 async function postApi (request) {
-
+    console.log('The POST data to send:',  JSON.stringify(request));
     const options = {
         method: 'POST',
         headers: {

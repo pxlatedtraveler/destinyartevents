@@ -195,7 +195,7 @@ document.addEventListener('dataready', function () {
         createTableHead(table, dataKeys);
 
         postButton.onclick = function (){
-            customData = customInput.value;
+            customData = {data: [[customInput.value]]};
 
             postApi(customData);
 

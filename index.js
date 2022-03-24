@@ -27,8 +27,8 @@ app.listen(port || 3000, () => {
 app.use(express.static('public'));
 app.use(express.json({ limit: '1mb' }));
 
-// Data to send
-const dataToSend = {
+// Data to get
+const dataToGet = {
   participants: {
     names: '',
     giftTypes: '',
@@ -38,21 +38,41 @@ const dataToSend = {
   dataStatus: 'not ready'
 };
 
+//GET FROM SPREADSHEET
 app.get('/api', (request, response) => {
-  const participants = dataToSend.participants;
+  const participants = dataToGet.participants;
 
   if (participants.names && participants.giftTypes && participants.giftsOk) {
-    dataToSend.dataStatus = 'ready';
+    dataToGet.dataStatus = 'ready';
   }
   else {
     response.end();
   }
   // Response data should be populated by grabParticipants.
-  response.json(dataToSend);
+  response.json(dataToGet);
 });
 
+// Data to send
+const dataToSend = {
+  participants: {
+    value: [['ok...']]
+  },
+  status: 'not ready' //use to determine if all mandatory data is present as condition
+}
+
+//POST TO SPREADSHEET
 app.post('/api', (request, response) => {
   console.log(request.body);
+
+  const dataObject = request.body;
+
+  dataToSend.participants.value = dataObject.data;
+
+  fs.readFile('credentials.json', (err, content) => {
+  if (err) return console.log('Error loading client secret file:', err);
+  authorize(JSON.parse(content), postParticipantData);
+});
+  // A receipt.
   response.json(request.body);
 })
 
@@ -134,7 +154,7 @@ function getNewToken(oAuth2Client, callback) {
  * @param {google.auth.OAuth2} auth The authenticated Google OAuth client.
  */
 function grabParticipants(auth) {
-    const participants = dataToSend.participants;
+    const participants = dataToGet.participants;
     const sheets = google.sheets({version: 'v4', auth});
     sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheet1,
@@ -182,3 +202,17 @@ function grabParticipants(auth) {
     })
 }
 
+function postParticipantData(auth) {
+  const participantsData = dataToSend.participants;
+  const sheets = google.sheets({version: 'v4', auth});
+  sheets.spreadsheets.values.update({
+    spreadsheetId: spreadsheet1,
+    range: 'TEST!A1',
+    valueInputOption: 'USER_ENTERED',
+    resource: {values: participantsData.value}
+  }, (err, res) => {
+    if (err) console.log(err);
+    const response = JSON.stringify(res, null, 2);
+    console.log('PUTTING RES:', response);
+  })
+}
