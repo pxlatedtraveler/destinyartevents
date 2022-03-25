@@ -54,24 +54,26 @@ app.get('/api', (request, response) => {
 
 // Data to send
 const dataToSend = {
+  customData: {
+    value: []
+  },
   participants: {
-    value: [['ok...']]
+    value: []
   },
   status: 'not ready' //use to determine if all mandatory data is present as condition
 }
 
 //POST TO SPREADSHEET
 app.post('/api', (request, response) => {
-  console.log(request.body);
-
   const dataObject = request.body;
 
-  dataToSend.participants.value = dataObject.data;
+  dataToSend.customData.value = dataObject.customData;
+  dataToSend.participants.value = dataObject.participants;
 
   fs.readFile('credentials.json', (err, content) => {
   if (err) return console.log('Error loading client secret file:', err);
   authorize(JSON.parse(content), postParticipantData);
-});
+  });
   // A receipt.
   response.json(request.body);
 })
@@ -192,9 +194,31 @@ function grabParticipants(auth) {
 
     sheets.spreadsheets.values.update({
       spreadsheetId: spreadsheet1,
-      range: 'TEST!A1',
+      range: 'TEST!A1:B2',
       valueInputOption: 'USER_ENTERED',
-      resource: {values: [['just a test!']]}
+      resource: {values: [['A1','B1'],['A2', 'B2']]}
+    }, (err, res) => {
+      if (err) console.log(err);
+      const response = JSON.stringify(res, null, 2);
+      console.log('PUTTING RES:', response);
+    })
+    sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheet1,
+      range: 'TEST!TestNamedRange',
+      valueInputOption: 'USER_ENTERED',
+      resource: {values: [['C1'],['C2'],['C3'],['C4']]}
+    }, (err, res) => {
+      if (err) console.log(err);
+      const response = JSON.stringify(res, null, 2);
+      console.log('PUTTING RES:', response);
+    })
+
+    sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: spreadsheet1,
+      resource: {
+        valueInputOption: 'USER_ENTERED',
+        data: updtBatchDE
+      },
     }, (err, res) => {
       if (err) console.log(err);
       const response = JSON.stringify(res, null, 2);
@@ -203,16 +227,44 @@ function grabParticipants(auth) {
 }
 
 function postParticipantData(auth) {
-  const participantsData = dataToSend.participants;
+  const customData = dataToSend.customData;
+  const participantData = dataToSend.participants;
   const sheets = google.sheets({version: 'v4', auth});
   sheets.spreadsheets.values.update({
     spreadsheetId: spreadsheet1,
     range: 'TEST!A1',
     valueInputOption: 'USER_ENTERED',
-    resource: {values: participantsData.value}
+    resource: {values: customData.value}
+  }, (err, res) => {
+    if (err) console.log(err);
+    const response = JSON.stringify(res, null, 2);
+    console.log('PUTTING RES:', response);
+  })
+
+  sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: spreadsheet1,
+    resource: {
+      valueInputOption: 'USER_ENTERED',
+      data: participantData.value
+    },
   }, (err, res) => {
     if (err) console.log(err);
     const response = JSON.stringify(res, null, 2);
     console.log('PUTTING RES:', response);
   })
 }
+
+//Values that share a single array represent a row
+//Each array represents a column stack. DE = cols D and E
+const updtBatchDE = [
+  {
+  "range": 'TEST!D:D',
+  "majorDimension": 'ROWS',
+  "values": [['D1'],['D2'],['D3'],['D4']]
+  },
+  {
+    "range": 'TEST!E:E',
+    "majorDimension": 'ROWS',
+    "values": [['E1'],['E2'],['E3'],['E4']]
+  }
+]

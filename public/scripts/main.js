@@ -22,8 +22,6 @@ import { postApi } from './Data.js';
 
 let participantData;
 
-window.customData = null;
-
 window.forAdminAttention = []; //USERS WHO'LL NEED ADMIN ATTENTION
 
 const participants = [];
@@ -195,14 +193,59 @@ document.addEventListener('dataready', function () {
         createTableHead(table, dataKeys);
 
         postButton.onclick = function (){
-            customData = {data: [[customInput.value]]};
+            const response = {
+                customData: [[customInput.value]],
+                participants: []
+            };
 
-            postApi(customData);
+            const resourceGiftee = formatToValueRange('Participants', 'ROWS', 'C2:C', participants, 'giftee');
+            const resourceGifter = formatToValueRange('Participants', 'ROWS', 'D2:D', participants, 'gifter');
+            const resourceNeedsAdmin = formatToValueRange('Participants', 'ROWS', 'E2:E', participants, 'needsAdmin');
+            response.participants.push(resourceGiftee, resourceGifter, resourceNeedsAdmin);
 
-            console.log(customData);
+            postApi(response);
+
+            console.log(response);
         };
         postButton.disabled = false;
     };
     sortButton.disabled = false;
     sortButton.value = 'SORT';
 })
+
+/**
+ * Convert participants data into Google Sheets API ValueRange JSON format.
+ * @param {String} sheet Name of the Sheet to write to.
+ * @param {String} majorD majorDimension, the major dimension of the values, ROWS or COLUMNS.
+ * @param {String} rangeName The range of cells to write to.
+ * @param {Array} array The array holding each object with the data we want to write.
+ * @param {String} property The name of the property in the objects that holds the data we want to write.
+ */
+function formatToValueRange (sheet, majorD, rangeName, array, property) {
+
+    const range = sheet + '!'+ rangeName;
+    const majorDimension = majorD;
+
+    const response = {
+        range: range,
+        majorDimension: majorDimension,
+        values: []
+    }
+
+    for(let i = 0; i < array.length; i++){
+        const descriptor = Object.getOwnPropertyDescriptor(array[i], property);
+        if (descriptor.value){
+            //TODO: Not hard-code .name
+            response.values[i] = [descriptor.value.name];
+        }
+        else {
+            response.values[i] = ['NULL'];
+        }
+        if (typeof descriptor.value === 'boolean'){
+            response.values[i] = [descriptor.value];
+        }
+
+    }
+
+    return response;
+}

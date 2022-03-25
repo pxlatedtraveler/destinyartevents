@@ -2,6 +2,5 @@
 credentials.json
 iisnode/
 token.json
-public/.htaccess
 .gitignore
-public/.htpasswd
+web.config
