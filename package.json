@@ -9,6 +9,7 @@
   "author": "Ruby || PxlatedTraveler",
   "license": "ISC",
   "dependencies": {
+    "discord.js": "^13.6.0",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "googleapis": "^39.2.0"
