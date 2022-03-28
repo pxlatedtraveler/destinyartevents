@@ -1,15 +1,15 @@
 process.traceDeprecation = true;
-//Require Express
+// Require Express
 require('dotenv').config();
 const express = require('express');
-//Require Google
+// Require Google
 const fs = require('fs');
 const readline = require('readline');
-const {google} = require('googleapis');
-const res = require('express/lib/response');
+const { google } = require('googleapis');
+// const res = require('express/lib/response');
 
 //
-//EXPRESS
+// EXPRESS
 //
 
 const app = express();
@@ -38,7 +38,7 @@ const dataToGet = {
   dataStatus: 'not ready'
 };
 
-//GET FROM SPREADSHEET
+// GET FROM SPREADSHEET
 app.get('/api', (request, response) => {
   const participants = dataToGet.participants;
 
@@ -60,10 +60,11 @@ const dataToSend = {
   participants: {
     value: []
   },
-  status: 'not ready' //use to determine if all mandatory data is present as condition
-}
+  // use to determine if all mandatory data is present as condition
+  status: 'not ready'
+};
 
-//POST TO SPREADSHEET
+// POST TO SPREADSHEET
 app.post('/api', (request, response) => {
   const dataObject = request.body;
 
@@ -76,10 +77,10 @@ app.post('/api', (request, response) => {
   });
   // A receipt.
   response.json(request.body);
-})
+});
 
 //
-//GOOGLE
+// GOOGLE
 //
 
 // Load client secrets from a local file.
@@ -93,9 +94,9 @@ const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 const TOKEN_PATH = 'token.json';
 
 
-//////////////////////////////////////////////////
-//FUNCTIONS
-//////////////////////////////////////////////////
+//
+// FUNCTIONS
+//
 
 
 /**
@@ -105,7 +106,7 @@ const TOKEN_PATH = 'token.json';
  * @param {function} callback The callback to call with the authorized client.
  */
 function authorize(credentials, callback) {
-  const {client_secret, client_id, redirect_uris} = credentials.web;
+  const { client_secret, client_id, redirect_uris } = credentials.web;
   const oAuth2Client = new google.auth.OAuth2(
       client_id, client_secret, redirect_uris[0]);
 
@@ -157,7 +158,7 @@ function getNewToken(oAuth2Client, callback) {
  */
 function grabParticipants(auth) {
     const participants = dataToGet.participants;
-    const sheets = google.sheets({version: 'v4', auth});
+    const sheets = google.sheets({ version: 'v4', auth });
     sheets.spreadsheets.values.get({
       spreadsheetId: spreadsheet1,
       range: nameRange,
@@ -196,22 +197,22 @@ function grabParticipants(auth) {
       spreadsheetId: spreadsheet1,
       range: 'TEST!A1:B2',
       valueInputOption: 'USER_ENTERED',
-      resource: {values: [['A1','B1'],['A2', 'B2']]}
+      resource: { values: [['A1', 'B1'], ['A2', 'B2']] }
     }, (err, res) => {
       if (err) console.log(err);
       const response = JSON.stringify(res, null, 2);
       console.log('PUTTING RES:', response);
-    })
+    });
     sheets.spreadsheets.values.update({
       spreadsheetId: spreadsheet1,
       range: 'TEST!TestNamedRange',
       valueInputOption: 'USER_ENTERED',
-      resource: {values: [['C1'],['C2'],['C3'],['C4']]}
+      resource: { values: [['C1'], ['C2'], ['C3'], ['C4']] }
     }, (err, res) => {
       if (err) console.log(err);
       const response = JSON.stringify(res, null, 2);
       console.log('PUTTING RES:', response);
-    })
+    });
 
     sheets.spreadsheets.values.batchUpdate({
       spreadsheetId: spreadsheet1,
@@ -223,23 +224,23 @@ function grabParticipants(auth) {
       if (err) console.log(err);
       const response = JSON.stringify(res, null, 2);
       console.log('PUTTING RES:', response);
-    })
+    });
 }
 
 function postParticipantData(auth) {
   const customData = dataToSend.customData;
   const participantData = dataToSend.participants;
-  const sheets = google.sheets({version: 'v4', auth});
+  const sheets = google.sheets({ version: 'v4', auth });
   sheets.spreadsheets.values.update({
     spreadsheetId: spreadsheet1,
     range: 'TEST!A1',
     valueInputOption: 'USER_ENTERED',
-    resource: {values: customData.value}
+    resource: { values: customData.value }
   }, (err, res) => {
     if (err) console.log(err);
     const response = JSON.stringify(res, null, 2);
     console.log('PUTTING RES:', response);
-  })
+  });
 
   sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: spreadsheet1,
@@ -251,20 +252,20 @@ function postParticipantData(auth) {
     if (err) console.log(err);
     const response = JSON.stringify(res, null, 2);
     console.log('PUTTING RES:', response);
-  })
+  });
 }
 
-//Values that share a single array represent a row
-//Each array represents a column stack. DE = cols D and E
+// Values that share a single array represent a row
+// Each array represents a column stack. DE = cols D and E
 const updtBatchDE = [
   {
-  "range": 'TEST!D:D',
-  "majorDimension": 'ROWS',
-  "values": [['D1'],['D2'],['D3'],['D4']]
+  'range': 'TEST!D:D',
+  'majorDimension': 'ROWS',
+  'values': [['D1'], ['D2'], ['D3'], ['D4']]
   },
   {
-    "range": 'TEST!E:E',
-    "majorDimension": 'ROWS',
-    "values": [['E1'],['E2'],['E3'],['E4']]
+    'range': 'TEST!E:E',
+    'majorDimension': 'ROWS',
+    'values': [['E1'], ['E2'], ['E3'], ['E4']]
   }
-]
+];

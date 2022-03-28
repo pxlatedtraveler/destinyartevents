@@ -4,3 +4,4 @@ iisnode/
 token.json
 .gitignore
 web.config
+node_modules/
