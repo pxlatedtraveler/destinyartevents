@@ -1,7 +1,12 @@
 process.traceDeprecation = true;
 require('dotenv').config();
+const Roles = require('./roles.json');
 const { Client, Intents } = require('discord.js');
 const token = process.env.BOTTOKEN;
+const Utils = require('./Utils');
+
+const roles = Roles.roles;
+const utils = Utils.utils;
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
 
@@ -15,13 +20,20 @@ client.on('interactionCreate', async interaction => {
 	const { commandName } = interaction;
 
 	if (commandName === 'ping') {
-		await interaction.reply('Pong!');
+        console.log(roles.Admin.name);
+        if (await utils.checkRolePriviledge(interaction, roles.Admin.id)) {
+            await interaction.reply(`You have ${roles.Admin.name} priviledges!`);
+        }
+        else {
+            await interaction.reply(`You DO NOT have ${roles.Admin.name} priviledges!`);
+        }
 	}
     else if (commandName === 'server') {
-		await interaction.reply('Server info.');
+		await interaction.reply(`Server name: ${interaction.guild.name}\nTotal members: ${interaction.guild.memberCount}`);
 	}
     else if (commandName === 'user') {
-		await interaction.reply('User info.');
+        console.log(interaction.guild.roles.guild.roles);
+		await interaction.reply(`Your tag: ${interaction.user.tag}\nYour id: ${interaction.user.id}`);
 	}
 });
 

@@ -5,28 +5,28 @@ const interval = 2000;
 
 const dataGet = new Event('dataready');
 
-const apiButton = document.getElementById("apiButton");
-apiButton.addEventListener("click", getApi);
+const apiButton = document.getElementById('apiButton');
+apiButton.addEventListener('click', getApi);
 
-async function getApi () {
+async function getApi() {
     try {
         const promise = await fetch('/api');
-        if (!promise.ok){
+        if (!promise.ok) {
             const text = await promise.text();
             throw Error(text);
         }
         const jsonResponse = await promise.json();
         console.log(jsonResponse);
-        if (jsonResponse.dataStatus === 'not ready'){
+        if (jsonResponse.dataStatus === 'not ready') {
             console.log('RETRY');
         }
-        else if (jsonResponse.dataStatus === 'ready'){
+        else if (jsonResponse.dataStatus === 'ready') {
             console.log('DATA OK');
             dataReceived = jsonResponse;
             document.dispatchEvent(dataGet);
         }
     }
-    catch(err) {
+    catch (err) {
         console.log('err:', err);
     }
     finally {
@@ -48,28 +48,28 @@ async function getApi () {
     }
 }
 
-async function postApi (request) {
-    console.log('The POST data to send:',  JSON.stringify(request));
+async function postApi(request) {
+    console.log('The POST data to send:', JSON.stringify(request));
     const options = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(request)
-      }
+      };
 
     try {
         const promise = await fetch('/api', options);
-        if (!promise.ok){
+        if (!promise.ok) {
             const text = await promise.text();
             throw Error(text);
         }
         const jsonResponse = await promise.json();
         console.log(jsonResponse);
     }
-    catch(err) {
+    catch (err) {
         console.log('err:', err);
     }
 }
 
-export { postApi }
+export { postApi };

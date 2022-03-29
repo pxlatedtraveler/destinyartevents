@@ -1,6 +1,5 @@
 /**
- * Destiny Community Events Exchange Sorter
- * 
+ * Title: Destiny Community Events Exchange Sorter
  * Description:
  * Proof of concept for sorting members participating in an exchange.
  * In a perfect world, the exchange is intended to happen in a circular format
@@ -11,18 +10,18 @@
  * conditions may make it more likely for certain outcomes to almost always happen. However,
  * This script is intended to be used with enough members to add variety, and it's also
  * expected that most members wont have unique conditions.
- * 
  * Author: Ruby || PxlatedTraveler
  */
 
-import Member from './Member.js';
+import { Member } from './Member.js';
 import { createTableHead, createTable } from './Tables.js';
 import { getRandomElement, getAllCompatible, assignParticipant, spliceCompatibles, checkNeedsAdmin } from './Sorting.js';
 import { postApi } from './Data.js';
 
 let participantData;
 
-window.forAdminAttention = []; //USERS WHO'LL NEED ADMIN ATTENTION
+// USERS WHO'LL NEED ADMIN ATTENTION
+window.forAdminAttention = [];
 
 const participants = [];
 
@@ -30,9 +29,8 @@ const participants = [];
  * Resets all post-creation assigned properties of each participant
  * Triggers when Sort button is clicked.
  */
-function reset ()
-{
-    participants.forEach(function (user){
+function reset() {
+    participants.forEach(function(user) {
         user.giftee = null;
         user.gifter = null;
         user.done = false;
@@ -40,98 +38,96 @@ function reset ()
         user._compatibleGifters = [];
         user._isStraggler = false;
         user.needsAdmin = false;
-    })
+    });
 }
 
 /**
  * The shuffling and sorting of all participants happen here.
  * This is triggered by the Sort button.
  */
-function pairAllParticipants ()
-{
-    let candidates = [], stragglers = [], noGiftee = [], noGifter = [], noGifteeNoGifter = [];
+function pairAllParticipants() {
+    const candidates = [], stragglers = [], noGiftee = [], noGifter = [], noGifteeNoGifter = [];
 
-    for (let i = 0; i < participants.length; i++){
-        while (candidates.length < i + 1){
-            //SHUFFLING PARTICIPANTS RANDOMLY AND ADDING TO NEW ARRAY
-            let user = getRandomElement(participants);
-            if (candidates.includes(user) === false){
+    for (let i = 0; i < participants.length; i++) {
+        while (candidates.length < i + 1) {
+            // SHUFFLING PARTICIPANTS RANDOMLY AND ADDING TO NEW ARRAY
+            const user = getRandomElement(participants);
+            if (candidates.includes(user) === false) {
                 candidates.push(user);
             }
         }
     }
 
-    for (let i = 0; i < candidates.length; i++){
-        //FINDS ALL POTENTIAL GIFTEES/GIFTERS FOR PARTICIPANT
+    for (let i = 0; i < candidates.length; i++) {
+        // FINDS ALL POTENTIAL GIFTEES/GIFTERS FOR PARTICIPANT
         getAllCompatible(candidates[i], candidates);
-        //ASSIGNS GIFTEE TO PARTICIPANT
+        // ASSIGNS GIFTEE TO PARTICIPANT
         assignParticipant(candidates[i]);
         console.error(candidates[i]);
-        console.log(candidates[i].name, "GIFTEE:", candidates[i].giftee);
+        console.log(candidates[i].name, 'GIFTEE:', candidates[i].giftee);
     }
-    //PUSH ALL WITH NO GIFTEE OR GIFTER INTO STRAGGLER
+    // PUSH ALL WITH NO GIFTEE OR GIFTER INTO STRAGGLER
     candidates.forEach(user => {
-        if (!user.giftee || !user.gifter){
+        if (!user.giftee || !user.gifter) {
             user._isStraggler = true;
             stragglers.push(user);
             console.warn(user.name, 'added to Stragglers');
-            //IF STRAGGLER IS ALSO .needsAdmin POP OFF FROM STRAGGLER LIST
-            if (forAdminAttention.includes(user)){
+            // IF STRAGGLER IS ALSO .needsAdmin POP OFF FROM STRAGGLER LIST
+            if (forAdminAttention.includes(user)) {
                 stragglers.pop();
                 console.warn(user.name, 'removed from stragglers');
             }
         }
-    })
-    //RUN EACH STRAGGLER TO CATEGORIZE
+    });
+    // RUN EACH STRAGGLER TO CATEGORIZE
     stragglers.forEach(user => {
-        if (!user.giftee && user.gifter){
+        if (!user.giftee && user.gifter) {
             noGiftee.push(user);
         }
-        else if (user.giftee && !user.gifter){
+        else if (user.giftee && !user.gifter) {
             noGifter.push(user);
         }
-        else if (!user.giftee && !user.gifter){
+        else if (!user.giftee && !user.gifter) {
             noGifteeNoGifter.push(user);
         }
-    })
+    });
 
     console.log('stragglers', stragglers);
     console.log('noGiftee', noGiftee);
     console.log('noGifter', noGifter);
 
-    noGifteeNoGifter.forEach((user)=>{
-        //RUN EACH noGifteeNoGifter THROUGH SPLICE WHICH IS AN EASIER CASE TO TAKE CARE OF
-        spliceCompatibles(user, noGifter);
-    })
-
-    noGiftee.forEach((user)=>{
-        //WHEN NOGIFTEES ARE RUN THROUGH SPLICER IF SUCCESSFUL IT WILL ALSO TAKE CARE OF A NOGIFTER
+    noGifteeNoGifter.forEach((user)=> {
+        // RUN EACH noGifteeNoGifter THROUGH SPLICE WHICH IS AN EASIER CASE TO TAKE CARE OF
         spliceCompatibles(user, noGifter);
     });
 
-    //LEFTOVERS NEED ADMIN ATTENTION
-    participants.forEach((user)=>{
+    noGiftee.forEach((user)=> {
+        // WHEN NOGIFTEES ARE RUN THROUGH SPLICER IF SUCCESSFUL IT WILL ALSO TAKE CARE OF A NOGIFTER
+        spliceCompatibles(user, noGifter);
+    });
+
+    // LEFTOVERS NEED ADMIN ATTENTION
+    participants.forEach((user)=> {
         checkNeedsAdmin(user);
-    })
+    });
 }
 
-//////////////////////////////////////////////////
-//API DATA CONVERSION
-//////////////////////////////////////////////////
+// ////////////////////////////////////////////////
+// API DATA CONVERSION
+// ////////////////////////////////////////////////
 
 /**
  * Creates Member objects representing individuals, using data from Google Sheets.
  * @param {Object} data The object property within the parent object grabbed from backend called participants.
  */
-function createParticipants (data)
-{
-    let names = data.names;
-    let giftTypes = data.giftTypes;
-    let giftsOk = data.giftsOk;
-    let blocked = data.blocked;
-    for (let i = 0; i < names.length; i++){
-        //MEMBER PARAMS TAKE NAME:STRING, GIFTTYPE:INT, GIFTSOK2D BOOL, GIFTSOK3D BOOL, GIFTSOKWRITING BOOL, BAN:[STRING]
-        let newMember = new Member(names[i][0],
+function createParticipants(data) {
+    const names = data.names;
+    const giftTypes = data.giftTypes;
+    const giftsOk = data.giftsOk;
+    const blocked = data.blocked;
+    for (let i = 0; i < names.length; i++) {
+        // MEMBER PARAMS TAKE NAME:STRING, GIFTTYPE:INT, GIFTSOK2D BOOL, GIFTSOK3D BOOL, GIFTSOKWRITING BOOL, BAN:[STRING]
+        const newMember = new Member(names[i][0],
             giftVanityConverter(giftTypes[i][0]),
             JSON.parse(giftsOk[i][0].toLowerCase()),
             JSON.parse(giftsOk[i][1].toLowerCase()),
@@ -147,52 +143,51 @@ function createParticipants (data)
  * @param {string} value Passed from Google Sheet data.
  * @returns An int value assigned to Member.giftType that will correspond with Member.giftsOk array.
  */
-function giftVanityConverter (value)
-{
-    if (value === "2D"){
+function giftVanityConverter(value) {
+    if (value === '2D') {
         return 0;
     }
-    else if (value === "3D"){
+    else if (value === '3D') {
         return 1;
     }
-    else if (value === "WRITING"){
+    else if (value === 'WRITING') {
         return 2;
     }
 }
 
-//////////////////////////////////////////////////
-//DOM ELEMENTS
-//////////////////////////////////////////////////
+// ////////////////////////////////////////////////
+// DOM ELEMENTS
+// ////////////////////////////////////////////////
 
-//SORT BUTTON SHUFFLES AND MATCHES PARTICIPANTS AT RANDOM
-const sortButton = document.getElementById("sortButton");
+// SORT BUTTON SHUFFLES AND MATCHES PARTICIPANTS AT RANDOM
+const sortButton = document.getElementById('sortButton');
 sortButton.disabled = true;
 sortButton.value = 'NOT READY';
 
-//CUSTOM OPTIONAL INPUT TO WRITE DATA TO A SHEET CELL
-const customInput = document.getElementById("customInput");
+// CUSTOM OPTIONAL INPUT TO WRITE DATA TO A SHEET CELL
+const customInput = document.getElementById('customInput');
 
-//BUTTON TO (TODO) WRITE TO SHEETS (probably pass data to back end here, then handle PUT request there)
-const postButton = document.getElementById("dataPost");
+// BUTTON TO (TODO) WRITE TO SHEETS (probably pass data to back end here, then handle PUT request there)
+const postButton = document.getElementById('dataPost');
 postButton.disabled = true;
 
-//SORTING IS DISABLED UNTIL DATA IS RECEIVED FROM BACKEND 'dataready'
-document.addEventListener('dataready', function () {
+// SORTING IS DISABLED UNTIL DATA IS RECEIVED FROM BACKEND 'dataready'
+document.addEventListener('dataready', function() {
     participantData = dataReceived.participants;
     console.warn('WE GOTS DATA RIGHT HERE YO!', participantData);
     createParticipants(participantData);
-    sortButton.onclick = function sortBtn (){
+    sortButton.onclick = function sortBtn() {
         reset();
         pairAllParticipants();
-    
-        let table = document.getElementById("results");
-        let dataKeys = Object.keys(participants[0]);
-        table.innerHTML = "";
-    
+
+        const table = document.getElementById('results');
+        const dataKeys = Object.keys(participants[0]);
+        table.innerHTML = '';
+
         createTable(table, participants);
         createTableHead(table, dataKeys);
 
-        postButton.onclick = function (){
+        postButton.onclick = function() {
             const response = {
                 customData: [[customInput.value]],
                 participants: []
@@ -211,7 +206,7 @@ document.addEventListener('dataready', function () {
     };
     sortButton.disabled = false;
     sortButton.value = 'SORT';
-})
+});
 
 /**
  * Convert participants data into Google Sheets API ValueRange JSON format.
@@ -221,31 +216,29 @@ document.addEventListener('dataready', function () {
  * @param {Array} array The array holding each object with the data we want to write.
  * @param {String} property The name of the property in the objects that holds the data we want to write.
  */
-function formatToValueRange (sheet, majorD, rangeName, array, property) {
+function formatToValueRange(sheet, majorD, rangeName, array, property) {
 
-    const range = sheet + '!'+ rangeName;
+    const range = sheet + '!' + rangeName;
     const majorDimension = majorD;
 
     const response = {
         range: range,
         majorDimension: majorDimension,
         values: []
-    }
+    };
 
-    for(let i = 0; i < array.length; i++){
+    for (let i = 0; i < array.length; i++) {
         const descriptor = Object.getOwnPropertyDescriptor(array[i], property);
-        if (descriptor.value){
-            //TODO: Not hard-code .name
+        if (descriptor.value) {
+            // TODO: Not hard-code .name
             response.values[i] = [descriptor.value.name];
         }
         else {
             response.values[i] = ['NULL'];
         }
-        if (typeof descriptor.value === 'boolean'){
+        if (typeof descriptor.value === 'boolean') {
             response.values[i] = [descriptor.value];
         }
-
     }
-
     return response;
 }
