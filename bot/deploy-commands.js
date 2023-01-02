@@ -1,22 +1,34 @@
 process.traceDeprecation = true;
 require('dotenv').config();
-const { SlashCommandBuilder } = require('@discordjs/builders');
-const { REST } = require('@discordjs/rest');
-const { Routes } = require('discord-api-types/v9');
+const { REST, Routes } = require('discord.js');
+const fs = require('node:fs');
 
-const clientID = process.env.CLIENTID;
-const guildID = process.env.DEVGUILDID;
+const clientId = process.env.CLIENTID;
+const guildId = process.env.DEVGUILDID;
 const token = process.env.BOTTOKEN;
 
-const commands = [
-    // new SlashCommandBuilder().setName('ping').setDescription('Replies with pong!'),
-    new SlashCommandBuilder().setName('server').setDescription('Replies with server info!'),
-    new SlashCommandBuilder().setName('user').setDescription('Replies with user info!'),
-]
-    .map(command => command.toJSON());
+const commands = [];
+const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
+
+for (const file of commandFiles) {
+    const command = require(`./commands/${file}`);
+    commands.push(command.data.toJSON());
+}
 
 const rest = new REST({ version: '9' }).setToken(token);
 
-rest.put(Routes.applicationGuildCommands(clientID, guildID), { body: commands })
-    .then(() => console.log('Successfully registered app commands.'))
-    .catch(console.error);
+(async () => {
+    try {
+        console.log(`Started refreshing ${commands.length} application (/) commands.`);
+        const data = await rest.put(
+            Routes.applicationGuildCommands(clientId, guildId),
+            { body: commands },
+        );
+        console.log(`Successfully reloaded ${data.length} applications (/) commands.`);
+    }
+    catch (error) {
+        console.error(error);
+    }
+})();
+
+// USE Routes.applicationCommands(clientId) in line 24 for put method for GLOBAL COMMANDS.
