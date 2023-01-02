@@ -3,11 +3,13 @@ require('dotenv').config();
 const { Client, Intents } = require('discord.js');
 const token = process.env.BOTTOKEN;
 const Roles = require('./roles.json');
-const GuildEvent = require('./GuildEvent.js');
+// const GuildEvent = require('./GuildEvent.js');
+const Member = require('./Members.js');
 const Utils = require('./Utils');
 
 const roles = Roles.roles;
-const guildEvent = GuildEvent.GuildEvent;
+// const guildEvent = GuildEvent.GuildEvent;
+const member = Member.Member;
 const utils = Utils.utils;
 
 const client = new Client({ intents: [Intents.FLAGS.GUILDS] });
@@ -41,7 +43,7 @@ client.on('interactionCreate', async interaction => {
 
 client.login(token);
 
-const events = [];
-const firstEvent = new guildEvent(events, { name: 'First Event Yo', startDate: { day: 27, month: 4 } });
+const fakeDiscordObj = { id: '001', username: 'pxl', discriminator: '#0007', tag: 'pxl#0007' };
+const firstMember = new member(fakeDiscordObj);
 
-console.log(firstEvent);
+console.log(firstMember);

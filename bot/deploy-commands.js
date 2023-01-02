@@ -9,7 +9,7 @@ const guildID = process.env.DEVGUILDID;
 const token = process.env.BOTTOKEN;
 
 const commands = [
-    new SlashCommandBuilder().setName('ping').setDescription('Replies with pong!'),
+    // new SlashCommandBuilder().setName('ping').setDescription('Replies with pong!'),
     new SlashCommandBuilder().setName('server').setDescription('Replies with server info!'),
     new SlashCommandBuilder().setName('user').setDescription('Replies with user info!'),
 ]
