@@ -5,3 +5,4 @@ token.json
 .gitignore
 web.config
 node_modules/
+.eslintrc.json
