@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, InteractionCollector, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 
 const Months = {
     '01': { id: '01', name: 'January', days: 31 },
@@ -14,9 +14,6 @@ const Months = {
     '11': { id: '11', name: 'November', days: 30 },
     '12': { id: '12', name: 'December', days: 31 }
 };
-
-let birthMonth;
-let birthDay;
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -44,7 +41,7 @@ module.exports = {
             .addComponents(
                 new TextInputBuilder()
                     .setCustomId('textinputmonth')
-                    .setLabel('Input month')
+                    .setLabel('Input month (ex: 01)')
                     .setStyle(TextInputStyle.Short)
                     .setMinLength(2)
                     .setMaxLength(2)
@@ -54,7 +51,7 @@ module.exports = {
             .addComponents(
                 new TextInputBuilder()
                     .setCustomId('textinputday')
-                    .setLabel('Input day')
+                    .setLabel('Input day (ex: 09)')
                     .setStyle(TextInputStyle.Short)
                     .setMinLength(2)
                     .setMaxLength(2)
@@ -78,36 +75,100 @@ module.exports = {
         await interaction.showModal(modal);
 
         const filter = intr => intr.user.id === interaction.user.id;
-        const modalCollector = new InteractionCollector(interaction.client, { filter, componentType: ComponentType.ModalSubmit, time: 10000, max: 1 });
-        modalCollector.on('collect', (i) => {
-            console.log('Collected Modal');
-            for (const [key, value] of i.fields.fields) {
+        const modalSubmit = await interaction.awaitModalSubmit({ time: 10000, filter })
+                    .catch(error => {
+                        console.log(error);
+                        return null;
+                    });
+
+        if (modalSubmit) {
+            let birthMonth;
+            let birthDay;
+            // let valid = false;
+            console.log(`Collected Modal: ${modalSubmit.user.username}`);
+            for (const [key, value] of modalSubmit.fields.fields) {
                 if (key === 'textinputmonth') birthMonth = value.value;
                 else if (key === 'textinputday') birthDay = value.value;
             }
-            i.reply({ content: `You entered ${Months[birthMonth].name} ${birthDay}. Is this correct?`, ephemeral: true, components: [rowVerify] });
-        });
-        modalCollector.on('end', (i) => {
-            const btnMsg = i.get(i.keys().next().value);
-            const verifyCollector = new InteractionCollector(interaction.client, { filter, componentType: ComponentType.Button, time: 10000 });
-            verifyCollector.on('collect', (vi) => {
-                console.log('Collected Verify', vi.customId);
-                if (vi.customId === 'btnconfirm') {
-                    btnMsg.editReply({ content: 'ok', components: [] });
-                    vi.reply({ content: `${vi.user.username}'s birthday successfully recorded.`, components: [] });
+            const validDate = validateDate(birthMonth, birthDay);
+            if (validDate.valid) {
+                // valid = true;
+                await modalSubmit.reply({ content: `You entered ${Months[birthMonth].name} ${birthDay}. Is this correct?`, ephemeral: true, components: [rowVerify] })
+                .catch(error => {
+                    console.log(error);
+                    return null;
+                });
+            }
+            else {
+                if (validDate.error.code === 1) {
+                    await modalSubmit.reply({ content: `The month entered, ${birthMonth} is not valid.`, ephemeral: true })
+                    .catch(error => {
+                        console.log(error);
+                        return null;
+                    });
                 }
-                else if (vi.customId === 'btnreject') {
-                    btnMsg.editReply({ content: 'ok', components: [] });
-                    vi.reply({ content: 'Use Birthday command to try again.', ephemeral: true, components: [] });
+                else if (validDate.error.code === 2) {
+                    await modalSubmit.reply({ content: `The day entered, ${birthDay} is invalid for the month of ${Months[birthMonth].name}.`, ephemeral: true })
+                    .catch(error => {
+                        console.log(error);
+                        return null;
+                    });
                 }
+            }
+            console.log('Waiting for Collector');
+            const btnPress = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button })
+            .catch(error => {
+                console.log(error);
+                return null;
             });
-            verifyCollector.on('end', () => { console.log('Verify Ended'); });
-        });
+
+            if (btnPress) {
+                console.log('Collected Verify', btnPress.customId);
+                if (btnPress.customId === 'btnconfirm') {
+                    // submit data to database and defer reply cause API may take longer.
+                    await btnPress.update({ content: `${btnPress.user.username}'s birthday successfully recorded. You may dismiss this message.`, components: [] })
+                    .catch(error => {
+                        console.log(error);
+                        return null;
+                    });
+                    await btnPress.followUp({ content: `User ${btnPress.user.username} registered their birthday!`, ephemeral: false })
+                    .catch(error => {
+                        console.log(error);
+                        return null;
+                    });
+                }
+                else if (btnPress.customId === 'btnreject') {
+                    await btnPress.update({ content: 'Use Birthday command to try again.', ephemeral: true, components: [] })
+                    .catch(error => {
+                        console.log(error);
+                        return null;
+                    });
+                }
+            }
+            else {
+                console.log('User No Press!');
+            }
+        }
+    // execute
     }
 };
 
-// TODO: Lots of verification for input data. See if you can create your own validations using discord's interface like it's native API does for some components.
-// Learn what the difference is between editReply() and update() and why the latter doesn't work.
-// Either delete the button reply message after button is clicked, or edit it while only sending a signatl to discord client that interaction was replied to.
+function validateDate(month, day) {
+    const data = { valid: false, error: { code: 1, msg:`Month entry ${Months[month]} is invalid.` } };
+    if (Months[month]) {
+        data.error.code = 2;
+        data.error.msg = `Month entry ${Months[month]} (${Months[month].name}) is valid month. Date ${day} is invalid for that month.`;
+        if (day <= Months[month].days) {
+            data.valid = true;
+            data.error.code = 0;
+            data.error.msg = '';
+            return data;
+        }
+    }
+    return data;
+}
+
+// Add slash command cooldown.
+// Add code block text formatting to input and user elements in messages sent. Will have to reformat messages to use double quotes.
 // Either utilize subcommands, OR create another button menu to split Birthday commands to "Register Birthday", "View Birthdays", and "Remove Birthday".
 // Just realized, View Birthdays would have subcommands too, such as "specific user" so use a userOptions builder, and view all birthdays for specific month.

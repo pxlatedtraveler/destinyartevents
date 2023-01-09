@@ -21,7 +21,7 @@ class Member {
 
     /**
      * Birthday - This is set by the guild member.
-     * Value is expected to hold day: INT and month: INT properties.
+     * Value is expected to hold day: INT and month: INT properties. Months are indexed at 0.
      * Code utilizes a set year that is a leap year and non leap to compare current year to.
      */
     get birthday() {
