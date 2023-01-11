@@ -22,9 +22,16 @@ module.exports = {
 
     async execute(interaction) {
         if (interaction.client.cooldowns.has(interaction.user.id)) {
-            await interaction.reply({ content: "`" + `${interaction.client.cooldownTime / 1000} second` + "`" + ' cooldown in progress. Try again in a moment.', ephemeral: true });
+            const userTimeout = interaction.client.cooldowns.get(interaction.user.id);
+            await interaction.reply({ content: "You've used this command recently. Try again after `" + getTimeLeft(userTimeout.timeout, userTimeout.startTime) + " seconds`.", ephemeral: true });
         }
         else {
+            console.log('SETTING COOLDOWN');
+            const timeout = setTimeout(() => {
+                interaction.client.cooldowns.delete(interaction.user.id);
+                console.log('COOLDOWN DELETED IN TIMEOUT: ', interaction.client.cooldowns);
+            }, interaction.client.cooldownTime);
+            interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
                         /*         if (interaction.options.getSubCommand() === 'setbirthday') {
                 // refer to https://discordjs.guide/slash-commands/parsing-options.html#subcommands
             }
@@ -44,7 +51,7 @@ module.exports = {
                 .addComponents(
                     new TextInputBuilder()
                         .setCustomId('textinputmonth')
-                        .setLabel('Input month (ex: 01)')
+                        .setLabel('Input month (Numerical value)')
                         .setStyle(TextInputStyle.Short)
                         .setMinLength(1)
                         .setMaxLength(2)
@@ -54,7 +61,7 @@ module.exports = {
                 .addComponents(
                     new TextInputBuilder()
                         .setCustomId('textinputday')
-                        .setLabel('Input day (ex: 09)')
+                        .setLabel('Input day')
                         .setStyle(TextInputStyle.Short)
                         .setMinLength(1)
                         .setMaxLength(2)
@@ -85,6 +92,7 @@ module.exports = {
                         });
 
             if (modalSubmit) {
+                refreshTimeout(interaction, timeout);
                 let birthMonth;
                 let birthDay;
                 // let valid = false;
@@ -109,22 +117,28 @@ module.exports = {
                     });
 
                     if (btnPress) {
+                        refreshTimeout(interaction, timeout);
                         console.log('Collected Verify', btnPress.customId);
                         if (btnPress.customId === 'btnconfirm') {
                             // submit data to database and defer reply cause API may take longer.
                             await btnPress.update({ content: "`" + btnPress.user.username + "`'s birthday successfully recorded. You may dismiss this message.", components: [] })
+                            .then((i) => {
+                                setTimeout(() => {
+                                    i.interaction.deleteReply();
+                                }, 3000);
+                            })
                             .catch(error => {
                                 console.log(error);
                                 return null;
                             });
-                            await btnPress.followUp({ content: "User `" + btnPress.user.username + "` registered their birthday!", ephemeral: false })
+                            await btnPress.followUp({ content: "User " + btnPress.user.toString() + " registered their birthday!", ephemeral: false })
                             .catch(error => {
                                 console.log(error);
                                 return null;
                             });
                         }
                         else if (btnPress.customId === 'btnreject') {
-                            await btnPress.update({ content: 'Use Birthday command to try again.', ephemeral: true, components: [] })
+                            await btnPress.update({ content: "Use the `/Birthday` command to try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] })
                             .catch(error => {
                                 console.log(error);
                                 return null;
@@ -133,7 +147,7 @@ module.exports = {
                     }
                     else {
                         console.log('User No Press!');
-                        await modalSubmit.editReply({ content: "Interaction has expired. Try again after the `" + interaction.client.cooldownTime / 1000 + " second cooldown.", ephemeral: true, components: [] })
+                        await modalSubmit.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " second`.", ephemeral: true, components: [] })
                         .catch(error => {
                             console.log(error);
                             return null;
@@ -142,15 +156,15 @@ module.exports = {
 
                 }
                 else {
-                    if (validDate.error.code === 1) {
-                        await modalSubmit.reply({ content: "The month entered, `" + birthMonth + "` is not valid.", ephemeral: true })
+                    if (validDate.error.code === 0) {
+                        await modalSubmit.reply({ content: "The month entered, `" + birthMonth + "` is not valid. Remember to use a numerical value (ie: 1 or 01 for January).", ephemeral: true })
                         .catch(error => {
                             console.log(error);
                             return null;
                         });
                     }
-                    else if (validDate.error.code === 2) {
-                        await modalSubmit.reply({ content: "The day entered, `" + birthDay + "` is invalid for the month of  `" + Months[birthMonth].name + "`.", ephemeral: true })
+                    else if (validDate.error.code === 1) {
+                        await modalSubmit.reply({ content: "The day entered, `" + birthDay + "` is not valid for the month of  `" + Months[birthMonth].name + "`. Remember to only use numerical values.", ephemeral: true })
                         .catch(error => {
                             console.log(error);
                             return null;
@@ -160,35 +174,29 @@ module.exports = {
             }
             else {
                 console.log('User No Submit');
-                await interaction.followUp({ content: "Request timed out. Try again after the `" + interaction.client.cooldownTime / 1000 + " second cooldown.", ephemeral: true })
+                await interaction.followUp({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true })
                 .catch(error => {
                     console.log(error);
                     return null;
                 });
             }
-            console.log('SETTING COOLDOWN');
-            interaction.client.cooldowns.set(interaction.user.id, true);
-
-            setTimeout(() => {
-                interaction.client.cooldowns.delete(interaction.user.id);
-            }, interaction.client.cooldownTime);
+            console.log('FINAL REFRESH COOLDOWN');
+            refreshTimeout(interaction, timeout);
         }
     // execute
     }
 };
 
 function validateDate(month, day) {
-    console.log('BEFORE: ', month);
     if (month < 10 && month.length > 1) month = month.slice(1);
     if (day < 10 && day.length > 1) day = day.slice(1);
-    console.log('AFTER: ', month);
-    const data = { m: month, d: day, valid: false, error: { code: 1, msg:`Month entry ${Months[month]} is invalid.` } };
+    const data = { m: month, d: day, valid: false, error: { code: 0, msg: `Month entry ${Months[month]} is invalid.` } };
     if (Months[month]) {
-        data.error.code = 2;
-        data.error.msg = `Month entry ${Months[month]} (${Months[month].name}) is valid month. Date ${day} is invalid for that month.`;
+        data.error.code = 1;
+        data.error.msg = `Date entry ${day} is invalid for the month of ${Months[month].name}.`;
         if (day <= Months[month].days) {
             data.valid = true;
-            data.error.code = 0;
+            data.error.code = null;
             data.error.msg = '';
             return data;
         }
@@ -196,6 +204,18 @@ function validateDate(month, day) {
     return data;
 }
 
-// Just did a decent revamp. Test all scenarios to view all messages, including not submiting and not pressing button. Especially those.
+function refreshTimeout(interaction, timeout) {
+    interaction.client.cooldowns.delete(interaction.user.id);
+    timeout.refresh();
+    // console.log('COOLDOWN DELETED IN FUNCTION: ', interaction.client.cooldowns);
+    interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
+    // console.log('ADDED IN FUNCTION: ', interaction.client.cooldowns);
+}
+
+function getTimeLeft(timeout, startTime) {
+    return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
+}
+// Test all scenarios to view all messages.
+// Will need stress-testing of multiple timeout object creations.
 // Either utilize subcommands, OR create another button menu to split Birthday commands to "Register Birthday", "View Birthdays", and "Remove Birthday".
 // Just realized, View Birthdays would have subcommands too, such as "specific user" so use a userOptions builder, and view all birthdays for specific month.
