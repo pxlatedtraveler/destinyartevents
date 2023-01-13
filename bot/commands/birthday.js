@@ -32,156 +32,166 @@ module.exports = {
                 console.log('COOLDOWN DELETED IN TIMEOUT: ', interaction.client.cooldowns);
             }, interaction.client.cooldownTime);
             interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
-                        /*         if (interaction.options.getSubCommand() === 'setbirthday') {
-                // refer to https://discordjs.guide/slash-commands/parsing-options.html#subcommands
-            }
-            else if (interaction.options.getSubCommand() === 'getbirthday') {
 
-            }
-            else if (interaction.options.getSubCommand() === 'removebirthday') {
-
-            } */
             console.log('CREATING COMPONENTS');
 
+            const rowMain = new ActionRowBuilder();
+
+            const addBirthday = new ButtonBuilder()
+                    .setCustomId('btnaddbirthday')
+                    .setLabel('Add Birthday')
+                    .setStyle(ButtonStyle.Success);
+            const removeBirthday = new ButtonBuilder()
+                    .setCustomId('btnremovebirthday')
+                    .setLabel('Remove Birthday')
+                    .setStyle(ButtonStyle.Danger);
+            const viewUpcoming = new ButtonBuilder()
+                    .setCustomId('btnviewupcoming')
+                    .setLabel('Upcoming Birthdays')
+                    .setStyle(ButtonStyle.Primary);
+            const lookupUser = new ButtonBuilder()
+                    .setCustomId('btnviewuser')
+                    .setLabel('Lookup User')
+                    .setStyle(ButtonStyle.Primary);
             const modal = new ModalBuilder()
-            .setCustomId('birthdaymodal')
-            .setTitle('Register your birthday');
-
-                const rowMonth = new ActionRowBuilder()
+                    .setCustomId('birthdaymodal')
+                    .setTitle('Register your birthday');
+            const rowMonth = new ActionRowBuilder()
                 .addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('textinputmonth')
-                        .setLabel('Input month (Numerical value)')
-                        .setStyle(TextInputStyle.Short)
-                        .setMinLength(1)
-                        .setMaxLength(2)
-                        .setRequired(true)
+                new TextInputBuilder()
+                    .setCustomId('textinputmonth')
+                    .setLabel('Input month (Numerical value)')
+                    .setStyle(TextInputStyle.Short)
+                    .setMinLength(1)
+                    .setMaxLength(2)
+                    .setRequired(true)
                 );
-                const rowDay = new ActionRowBuilder()
+            const rowDay = new ActionRowBuilder()
                 .addComponents(
-                    new TextInputBuilder()
-                        .setCustomId('textinputday')
-                        .setLabel('Input day')
-                        .setStyle(TextInputStyle.Short)
-                        .setMinLength(1)
-                        .setMaxLength(2)
-                        .setRequired(true)
+                new TextInputBuilder()
+                    .setCustomId('textinputday')
+                    .setLabel('Input day')
+                    .setStyle(TextInputStyle.Short)
+                    .setMinLength(1)
+                    .setMaxLength(2)
+                    .setRequired(true)
                 );
-
-                modal.addComponents(rowMonth, rowDay);
-
-                const rowVerify = new ActionRowBuilder()
-                    .addComponents(
-                            new ButtonBuilder()
-                                .setCustomId('btnconfirm')
-                                .setLabel('Yes')
-                                .setStyle(ButtonStyle.Primary),
-                            new ButtonBuilder()
-                                .setCustomId('btnreject')
-                                .setLabel('No')
-                                .setStyle(ButtonStyle.Danger)
-                    );
-
-            await interaction.showModal(modal);
+                // change this to happen upon modal creation since it's not conditional. Must create modal AFTER rows tho.
+            modal.addComponents(rowMonth, rowDay);
+            const rowVerify = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('btnconfirm')
+                        .setLabel('Yes')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('btnreject')
+                        .setLabel('No')
+                        .setStyle(ButtonStyle.Danger)
+                );
 
             const filter = intr => intr.user.id === interaction.user.id;
-            const modalSubmit = await interaction.awaitModalSubmit({ time: 10000, filter })
-                        .catch(error => {
-                            console.log(error);
-                            return null;
-                        });
+            const test = false;
+            test ? rowMain.addComponents(removeBirthday, viewUpcoming, lookupUser) : rowMain.addComponents(addBirthday, viewUpcoming, lookupUser);
 
-            if (modalSubmit) {
-                refreshTimeout(interaction, timeout);
-                let birthMonth;
-                let birthDay;
-                // let valid = false;
-                console.log(`Collected Modal: ${modalSubmit.user.username}`);
-                birthMonth = modalSubmit.fields.getTextInputValue('textinputmonth');
-                birthDay = modalSubmit.fields.getTextInputValue('textinputday');
-                const validDate = validateDate(birthMonth, birthDay);
-                if (validDate.valid) {
-                    // valid = true;
-                    birthMonth = validDate.m;
-                    birthDay = validDate.d;
-                    await modalSubmit.reply({ content: "You entered `" + Months[birthMonth].name + ' ' + birthDay + "`. Is this correct?", ephemeral: true, components: [rowVerify] })
-                    .catch(error => {
-                        console.log(error);
-                        return null;
-                    });
-                    console.log('Waiting for Collector');
-                    const btnPress = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button })
-                    .catch(error => {
-                        console.log(error);
-                        return null;
-                    });
-
-                    if (btnPress) {
-                        refreshTimeout(interaction, timeout);
-                        console.log('Collected Verify', btnPress.customId);
-                        if (btnPress.customId === 'btnconfirm') {
-                            // submit data to database and defer reply cause API may take longer.
-                            await btnPress.update({ content: "`" + btnPress.user.username + "`'s birthday successfully recorded. You may dismiss this message.", components: [] })
-                            .then((i) => {
-                                setTimeout(() => {
-                                    i.interaction.deleteReply();
-                                }, 3000);
-                            })
-                            .catch(error => {
-                                console.log(error);
-                                return null;
-                            });
-                            await btnPress.followUp({ content: "User " + btnPress.user.toString() + " registered their birthday!", ephemeral: false })
-                            .catch(error => {
-                                console.log(error);
-                                return null;
-                            });
+            await interaction.reply({ content: 'Select an action to perform.', ephemeral: true, components: [rowMain] });
+            // after I finish cleaning and fixing remove birthday, I may have to remove the commad variable name and leave it nameless. I don't think I'll reference it.
+            await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button })
+                .then(async (command) => {
+                    refreshTimeout(interaction, timeout);
+                    console.log(interaction.user.username, ' Collected Command', command.customId);
+                    if (command.customId === 'btnaddbirthday') {
+                        await command.showModal(modal);
+                        await command.editReply({ content: 'Waiting for reply.', components: [] });
+                        const modalSubmit = await interaction.awaitModalSubmit({ time: 10000, filter });
+                        if (modalSubmit) {
+                            refreshTimeout(interaction, timeout);
+                            let birthMonth;
+                            let birthDay;
+                            console.log(`Collected Modal: ${modalSubmit.user.username}`);
+                            birthMonth = modalSubmit.fields.getTextInputValue('textinputmonth');
+                            birthDay = modalSubmit.fields.getTextInputValue('textinputday');
+                            const validDate = validateDate(birthMonth, birthDay);
+                            if (validDate.valid) {
+                                birthMonth = validDate.m;
+                                birthDay = validDate.d;
+                                await modalSubmit.reply({ content: "You entered `" + Months[birthMonth].name + ' ' + birthDay + "`. Is this correct?", ephemeral: true, components: [rowVerify] });
+                                command.deleteReply();
+                                console.log('Waiting for Collector btnPress');
+                                // Just like btnPress isn't referenced, I don't think command will be either.
+                                await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button })
+                                    .then(async (btnPress) => {
+                                        refreshTimeout(interaction, timeout);
+                                        console.log('Collected Verify', btnPress.customId);
+                                        if (btnPress.customId === 'btnconfirm') {
+                                            await btnPress.update({ content: "`" + btnPress.user.username + "`'s birthday successfully recorded. You may dismiss this message.", components: [] })
+                                                .then((btnPress_del_i) => { setTimeout(() => { btnPress_del_i.interaction.deleteReply();}, 3000); });
+                                            await btnPress.followUp({ content: btnPress.user.toString() + " registered their birthday!", ephemeral: false });
+                                        }
+                                        else if (btnPress.customId === 'btnreject') {
+                                            await btnPress.update({ content: "Use the `/Birthday` command to try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
+                                        }
+                                    })
+                                    .catch(async err => {
+                                        console.log('User No Press btnPress!', err);
+                                        if (err.code === 'InteractionCollectorError') {
+                                            await modalSubmit.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
+                                        }
+                                    });
+                            }
+                            else {
+                                if (validDate.error.code === 0) {
+                                    await modalSubmit.reply({ content: "The month entered, `" + birthMonth + "` is not valid. Remember to use a numerical value (ie: 1 or 01 for January).", ephemeral: true });
+                                    interaction.deleteReply();
+                                }
+                                else if (validDate.error.code === 1) {
+                                    birthMonth = validDate.m;
+                                    await modalSubmit.reply({ content: "The day entered, `" + birthDay + "` is not valid for the month of  `" + Months[birthMonth].name + "`. Remember to only use numerical values.", ephemeral: true });
+                                    interaction.deleteReply();
+                                }
+                            }
                         }
-                        else if (btnPress.customId === 'btnreject') {
-                            await btnPress.update({ content: "Use the `/Birthday` command to try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] })
-                            .catch(error => {
-                                console.log(error);
-                                return null;
-                            });
+                        else {
+                            console.log('User No Submit');
+                            await command.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true });
                         }
+                    }
+                    else if (command.customId === 'btnremovebirthday') {
+                        await command.update({ content: 'Are you sure you want to remove your birthday?', ephemeral: true, components: [rowVerify] });
+                        console.log('Waiting for Collector');
+                        const btnPressConfirmRemove = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button });
+                        if (btnPressConfirmRemove) {
+                            refreshTimeout(interaction, timeout);
+                            console.log('Collected Verify', btnPressConfirmRemove.customId);
+                            if (btnPressConfirmRemove.customId === 'btnconfirm') {
+                                await btnPressConfirmRemove.update({ content: "`" + btnPressConfirmRemove.user.username + "`'s birthday successfully removed. You may dismiss this message.", components: [] })
+                                    .then((btnPressConfirmRemove_i) => { setTimeout(() => { btnPressConfirmRemove_i.interaction.deleteReply(); }, 3000); });
+                                await btnPressConfirmRemove.followUp({ content: btnPressConfirmRemove.user.toString() + " removed their birthday.", ephemeral: false });
+                            }
+                            else if (btnPressConfirmRemove.customId === 'btnreject') {
+                                await btnPressConfirmRemove.update({ content: "No action was taken. You can use the `/Birthday` command to try something else after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
+                            }
+                        }
+                        else {
+                            console.log('User No Press btnPressConfirmRemove');
+                            await command.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
+                        }
+                    }
+                })
+                .catch(async (err) => {
+                    console.log('User No Press command', err);
+                    if (err.code === 'InteractionCollectorError') {
+                        await interaction.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
                     }
                     else {
-                        console.log('User No Press!');
-                        await modalSubmit.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " second`.", ephemeral: true, components: [] })
-                        .catch(error => {
-                            console.log(error);
-                            return null;
-                        });
+                        console.log('Not a collection error:', err.code);
+                        await interaction.editReply({ content: "An error occured. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
                     }
 
-                }
-                else {
-                    if (validDate.error.code === 0) {
-                        await modalSubmit.reply({ content: "The month entered, `" + birthMonth + "` is not valid. Remember to use a numerical value (ie: 1 or 01 for January).", ephemeral: true })
-                        .catch(error => {
-                            console.log(error);
-                            return null;
-                        });
-                    }
-                    else if (validDate.error.code === 1) {
-                        await modalSubmit.reply({ content: "The day entered, `" + birthDay + "` is not valid for the month of  `" + Months[birthMonth].name + "`. Remember to only use numerical values.", ephemeral: true })
-                        .catch(error => {
-                            console.log(error);
-                            return null;
-                        });
-                    }
-                }
-            }
-            else {
-                console.log('User No Submit');
-                await interaction.followUp({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true })
-                .catch(error => {
-                    console.log(error);
-                    return null;
                 });
-            }
             console.log('FINAL REFRESH COOLDOWN');
             refreshTimeout(interaction, timeout);
+        // cooldown
         }
     // execute
     }

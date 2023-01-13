@@ -72,6 +72,10 @@ client.on(Events.ShardError, error => {
 	console.error('A websocket connection encountered an error:', error);
 });
 
+client.on('error', (err) => {
+    console.log(err.message);
+ });
+
 process.on('unhandledRejection', error => {
 	console.error('Unhandled promise rejection:', error);
 });
