@@ -41,43 +41,47 @@ module.exports = {
                     .setCustomId('btnaddbirthday')
                     .setLabel('Add Birthday')
                     .setStyle(ButtonStyle.Success);
+
             const removeBirthday = new ButtonBuilder()
                     .setCustomId('btnremovebirthday')
                     .setLabel('Remove Birthday')
                     .setStyle(ButtonStyle.Danger);
+
             const viewUpcoming = new ButtonBuilder()
                     .setCustomId('btnviewupcoming')
                     .setLabel('Upcoming Birthdays')
                     .setStyle(ButtonStyle.Primary);
+
             const lookupUser = new ButtonBuilder()
                     .setCustomId('btnviewuser')
                     .setLabel('Lookup User')
                     .setStyle(ButtonStyle.Primary);
+
             const modal = new ModalBuilder()
                     .setCustomId('birthdaymodal')
-                    .setTitle('Register your birthday');
-            const rowMonth = new ActionRowBuilder()
-                .addComponents(
-                new TextInputBuilder()
-                    .setCustomId('textinputmonth')
-                    .setLabel('Input month (Numerical value)')
-                    .setStyle(TextInputStyle.Short)
-                    .setMinLength(1)
-                    .setMaxLength(2)
-                    .setRequired(true)
-                );
-            const rowDay = new ActionRowBuilder()
-                .addComponents(
-                new TextInputBuilder()
-                    .setCustomId('textinputday')
-                    .setLabel('Input day')
-                    .setStyle(TextInputStyle.Short)
-                    .setMinLength(1)
-                    .setMaxLength(2)
-                    .setRequired(true)
-                );
-                // change this to happen upon modal creation since it's not conditional. Must create modal AFTER rows tho.
-            modal.addComponents(rowMonth, rowDay);
+                    .setTitle('Register your birthday')
+                    .addComponents(
+                        new ActionRowBuilder()
+                            .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('textinputmonth')
+                                .setLabel('Input month (Numerical value)')
+                                .setStyle(TextInputStyle.Short)
+                                .setMinLength(1)
+                                .setMaxLength(2)
+                                .setRequired(true)
+                            ),
+                        new ActionRowBuilder()
+                            .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('textinputday')
+                                .setLabel('Input day')
+                                .setStyle(TextInputStyle.Short)
+                                .setMinLength(1)
+                                .setMaxLength(2)
+                                .setRequired(true)
+                            ));
+
             const rowVerify = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
@@ -95,7 +99,6 @@ module.exports = {
             test ? rowMain.addComponents(removeBirthday, viewUpcoming, lookupUser) : rowMain.addComponents(addBirthday, viewUpcoming, lookupUser);
 
             await interaction.reply({ content: 'Select an action to perform.', ephemeral: true, components: [rowMain] });
-            // after I finish cleaning and fixing remove birthday, I may have to remove the commad variable name and leave it nameless. I don't think I'll reference it.
             await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button })
                 .then(async (command) => {
                     refreshTimeout(interaction, timeout);
@@ -118,7 +121,6 @@ module.exports = {
                                 await modalSubmit.reply({ content: "You entered `" + Months[birthMonth].name + ' ' + birthDay + "`. Is this correct?", ephemeral: true, components: [rowVerify] });
                                 command.deleteReply();
                                 console.log('Waiting for Collector btnPress');
-                                // Just like btnPress isn't referenced, I don't think command will be either.
                                 await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button })
                                     .then(async (btnPress) => {
                                         refreshTimeout(interaction, timeout);

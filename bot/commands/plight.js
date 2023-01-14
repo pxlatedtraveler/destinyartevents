@@ -3,7 +3,7 @@ const { SlashCommandBuilder, ButtonStyle, ActionRowBuilder, ButtonBuilder, Compo
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('plight')
-        .setDescription('Replies with OK!'),
+        .setDescription('Used for testing snippets of code and techniques for when I find myself in trouble'),
 
     async execute(interaction) {
         const rowMain = new ActionRowBuilder()
