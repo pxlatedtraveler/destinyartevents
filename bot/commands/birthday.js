@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const logger = require('../../util/logger.js');
 
 const Months = {
     '1': { id: '1', name: 'January', days: 31 },
@@ -27,14 +28,14 @@ module.exports = {
             await interaction.reply({ content: "You've used this command recently. Try again after `" + getTimeLeft(userTimeout.timeout, userTimeout.startTime) + " seconds`.", ephemeral: true });
         }
         else {
-            console.log('SETTING COOLDOWN');
+            logger.info('SETTING COOLDOWN');
             const timeout = setTimeout(() => {
                 interaction.client.cooldowns.delete(interaction.user.id);
-                console.log('COOLDOWN DELETED IN TIMEOUT: ', interaction.client.cooldowns);
+                logger.info('COOLDOWN DELETED IN TIMEOUT: ', interaction.client.cooldowns);
             }, interaction.client.cooldownTime);
             interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
 
-            console.log('CREATING COMPONENTS');
+            logger.info('CREATING COMPONENTS');
 
             const rowMain = new ActionRowBuilder();
 
@@ -101,21 +102,21 @@ module.exports = {
 
             await interaction.reply({ content: 'Select an action to perform.', ephemeral: true, components: [rowMain] });
 
-            const command = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { console.log('command', err); });
+            const command = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.info('command', err); });
 
             if (command) {
                 refreshTimeout(interaction, timeout);
-                console.log(interaction.user.username, ' Collected Command', command.customId);
+                logger.info(interaction.user.username, ' Collected Command', command.customId);
 
                 if (command.customId === 'btnaddbirthday') {
                     await command.showModal(modal);
                     await command.editReply({ content: 'Waiting for reply.', components: [] });
 
-                    const modalSubmit = await interaction.awaitModalSubmit({ time: 10000, filter }).catch(err => { console.log('modal', err); });
+                    const modalSubmit = await interaction.awaitModalSubmit({ time: 10000, filter }).catch(err => { logger.info('modal', err); });
 
                     if (modalSubmit) {
                         refreshTimeout(interaction, timeout);
-                        console.log(`Collected Modal: ${modalSubmit.user.username}`);
+                        logger.info(`Collected Modal: ${modalSubmit.user.username}`);
                         let birthMonth;
                         let birthDay;
                         birthMonth = modalSubmit.fields.getTextInputValue('textinputmonth');
@@ -128,13 +129,13 @@ module.exports = {
                             birthDay = validDate.d;
                             await modalSubmit.reply({ content: "You entered `" + Months[birthMonth].name + ' ' + birthDay + "`. Is this correct?", ephemeral: true, components: [rowVerify] });
                             command.deleteReply();
-                            console.log('Waiting for Collector btnPress');
+                            logger.info('Waiting for Collector btnPress');
 
-                            const btnPress = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { console.log('modal submit', err); });
+                            const btnPress = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.info('modal submit', err); });
 
                             if (btnPress) {
                                 refreshTimeout(interaction, timeout);
-                                console.log('Collected Verify', btnPress.customId);
+                                logger.info('Collected Verify', btnPress.customId);
 
                                 if (btnPress.customId === 'btnconfirm') {
                                     await btnPress.update({ content: "`" + btnPress.user.username + "`'s birthday successfully recorded. You may dismiss this message.", components: [] })
@@ -146,7 +147,7 @@ module.exports = {
                                 }
                             }
                             else {
-                                console.log('User No Press btnPress!');
+                                logger.info('User No Press btnPress!');
                                 await modalSubmit.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
                             }
                         }
@@ -164,19 +165,19 @@ module.exports = {
                         }
                     }
                     else {
-                        console.log('User No Submit');
+                        logger.info('User No Submit');
                         await command.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true });
                     }
                 }
                 else if (command.customId === 'btnremovebirthday') {
                     await command.update({ content: 'Are you sure you want to remove your birthday?', ephemeral: true, components: [rowVerify] });
-                    console.log('Waiting for Collector');
+                    logger.info('Waiting for Collector');
 
-                    const btnPressConfirmRemove = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { console.log('command remove', err); });
+                    const btnPressConfirmRemove = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.info('command remove', err); });
 
                     if (btnPressConfirmRemove) {
                         refreshTimeout(interaction, timeout);
-                        console.log('Collected Verify', btnPressConfirmRemove.customId);
+                        logger.info('Collected Verify', btnPressConfirmRemove.customId);
 
                         if (btnPressConfirmRemove.customId === 'btnconfirm') {
                             await btnPressConfirmRemove.update({ content: "`" + btnPressConfirmRemove.user.username + "`'s birthday successfully removed. You may dismiss this message.", components: [] })
@@ -188,16 +189,16 @@ module.exports = {
                         }
                     }
                     else {
-                        console.log('User No Press btnPressConfirmRemove');
+                        logger.info('User No Press btnPressConfirmRemove');
                         await command.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
                     }
                 }
             }
             else {
-                console.log('User No Press command');
+                logger.info('User No Press command');
                 await interaction.editReply({ content: "Interaction expired. Try again after `" + interaction.client.cooldownTime / 1000 + " seconds`.", ephemeral: true, components: [] });
             }
-            console.log('FINAL REFRESH COOLDOWN');
+            logger.info('FINAL REFRESH COOLDOWN');
             refreshTimeout(interaction, timeout);
         // cooldown
         }
@@ -232,7 +233,7 @@ function getTimeLeft(timeout, startTime) {
     return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
 }
 // All is working.
-// Need to re-phrase all console logs and maybe delete some?
+// Need to re-phrase all logs and maybe delete some? (using pino).
 // Then just add if statements for Upcoming Birthdays and Lookup Users.
 // Will need stress-testing of multiple timeout object creations.
 // For Specific user, use userOption builder.

@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, ButtonStyle, ActionRowBuilder, ButtonBuilder, ComponentType, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const logger = require('../../util/logger.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -29,16 +30,16 @@ module.exports = {
 
         await interaction.reply({ content: 'Test Button Interaction', ephemeral: true, components: [rowMain] });
 
-        const command = await interaction.channel.awaitMessageComponent({ time: 5000, ComponentType: ComponentType.Button }).catch(err => console.log('No Press!', err));
+        const command = await interaction.channel.awaitMessageComponent({ time: 5000, ComponentType: ComponentType.Button }).catch(err => logger.info('No Press!', err));
 
         if (command) {
-            console.log('Button pressed!');
+            logger.info('Button pressed!');
             await command.showModal(modal);
             await interaction.editReply({ content: 'Button Pressed!', components: [] });
 
             // Cleanly chaining commands with the equivalent for modal interaction
 
-            const modalSubmit = await interaction.awaitModalSubmit({ time: 5000 }).catch(err => console.log('No submit...', err));
+            const modalSubmit = await interaction.awaitModalSubmit({ time: 5000 }).catch(err => logger.info('No submit...', err));
 
             if (modalSubmit) {
                 await modalSubmit.reply({ content: 'Got Submit!', ephemeral: true });

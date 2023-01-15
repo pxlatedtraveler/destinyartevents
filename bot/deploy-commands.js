@@ -1,5 +1,6 @@
 process.traceDeprecation = true;
 require('dotenv').config();
+const logger = require('../util/logger.js');
 const { REST, Routes } = require('discord.js');
 const fs = require('node:fs');
 
@@ -19,12 +20,12 @@ const rest = new REST({ version: '9' }).setToken(token);
 
 (async () => {
     try {
-        console.log(`Started refreshing ${commands.length} application (/) commands.`);
+        logger.info(`Started refreshing ${commands.length} application (/) commands.`);
         const data = await rest.put(
             Routes.applicationGuildCommands(clientId, guildId),
             { body: commands },
         );
-        console.log(`Successfully reloaded ${data.length} applications (/) commands.`);
+        logger.info(`Successfully reloaded ${data.length} applications (/) commands.`);
     }
     catch (error) {
         console.error(error);

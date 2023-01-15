@@ -9,6 +9,7 @@
 
 process.traceDeprecation = true;
 require('dotenv').config();
+const logger = require('../util/logger.js');
 // --Discord Specific
 const fs = require('node:fs');
 const path = require('node:path');
@@ -65,19 +66,19 @@ client.on(Events.InteractionCreate, async interaction => {
 });
 
 client.once(Events.ClientReady, c => {
-    console.log(`Ready! Logged in as ${c.user.tag}`);
+    logger.info(`Ready! Logged in as ${c.user.tag}`);
 });
 
 client.on(Events.ShardError, error => {
-	console.error('A websocket connection encountered an error:', error);
+	logger.error('A websocket connection encountered an error:', error);
 });
 
 client.on('error', (err) => {
-    console.log(err.message);
+    logger.info(err.message);
  });
 
 process.on('unhandledRejection', error => {
-	console.error('Unhandled promise rejection:', error);
+	logger.error('Unhandled promise rejection:', error);
 });
 
 client.login(token);
@@ -86,4 +87,4 @@ client.login(token);
 const fakeDiscordObj = { id: '001', username: 'pxl', discriminator: '#0007', tag: 'pxl#0007' };
 const firstMember = new member(fakeDiscordObj);
 
-console.log(firstMember);
+logger.info(firstMember);
