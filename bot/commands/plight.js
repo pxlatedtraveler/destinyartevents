@@ -1,58 +1,46 @@
-const { SlashCommandBuilder, ButtonStyle, ActionRowBuilder, ButtonBuilder, ComponentType, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, ButtonStyle, ActionRowBuilder, ButtonBuilder, ComponentType, UserSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const logger = require('../../util/logger.js');
+
+const cooldownTimer = 5000;
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('plight')
         .setDescription('Used for testing snippets of code and techniques for when I find myself in trouble'),
+/*         .addUserOption((option =>
+            option.setName('finduser')
+                .setDescription('Select a user')
+                .setRequired(true))), THISWORKS */
 
     async execute(interaction) {
-        const rowMain = new ActionRowBuilder()
+        const row = new ActionRowBuilder()
             .addComponents(
-                new ButtonBuilder()
-                .setCustomId('btn')
-                .setLabel('Press Me')
-                .setStyle(ButtonStyle.Success)
+                new UserSelectMenuBuilder()
+                    .setCustomId('userselect')
+                    .setPlaceholder('name#0000')
+                    .setMaxValues(1)
+                    .setMinValues(1)
             );
 
-        const rowInput = new ActionRowBuilder()
-            .addComponents(
-            new TextInputBuilder()
-                .setCustomId('txt')
-                .setLabel('The thing')
-                .setStyle(TextInputStyle.Short)
-            );
+        const filter = intr => intr.user.id === interaction.user.id;
+        await interaction.reply({ content: 'Choose!', components: [row] });
+        const mainCommand = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.UserSelect }).catch(err => { logger.error(err); });
 
-        const modal = new ModalBuilder()
-            .setCustomId('modal')
-            .setTitle('Type something!')
-                .addComponents(rowInput);
+        if (mainCommand) {
+            console.log(mainCommand.message.components[0]);
+            const birthdayPerson = interaction.client._tempBirthdays.get(mainCommand.users.first().id);
+            if (birthdayPerson) {
+                mainCommand.reply({ content: "User `" + mainCommand.users.first().username + "`'s birthday is on `" + birthdayPerson.month + ' ' + birthdayPerson.day + "`", components: [] });
+            }
+            else {
+                interaction.editReply({ content: "User `" + mainCommand.users.first().username + "` has not registered their birthday.", components: [] });
 
-        await interaction.reply({ content: 'Test Button Interaction', ephemeral: true, components: [rowMain] });
-
-        const command = await interaction.channel.awaitMessageComponent({ time: 8000, ComponentType: ComponentType.Button }).catch(err => logger.info(err));
-
-        if (command) {
-            logger.info('Button pressed!');
-            await command.showModal(modal);
-            await interaction.editReply({ content: 'Button Pressed!', components: [] });
+            }
         }
         else {
-            logger.info('No Press!');
-            await interaction.editReply({ content: 'No press!', components: [] });
-        }
+            logger.info('USER NO INPUT mainCommand');
+            await interaction.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", ephemeral: true, components: [] });
 
-        // Cleanly chaining commands with the equivalent for modal interaction
-
-
-        const modalSubmit = await interaction.awaitModalSubmit({ time: 5000 }).catch(error => { logger.info(error); });
-
-        if (modalSubmit) {
-            await modalSubmit.reply('Got Submit!');
-        }
-        else {
-            logger.info('No submit!');
-            await interaction.followUp({ content: 'No submit...' }).catch(err => console.log(err));
         }
     },
 };

@@ -30,7 +30,7 @@ const member = Member.Member;
 const client = new Client({ intents: [GatewayIntentBits.Guilds], partials: [Partials.Channel] });
 client.commands = new Collection();
 client.cooldowns = new Collection();
-client.cooldownTime = 10000;
+client._tempBirthdays = new Collection();
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
