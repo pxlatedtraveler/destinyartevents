@@ -1,5 +1,15 @@
-const { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, UserSelectMenuBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, EmbedBuilder, UserSelectMenuBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
 const logger = require('../../util/logger.js');
+
+class Birthday {
+    constructor(month, day) {
+        this.month = month;
+        this.day = day;
+    }
+    toNum(val) {
+        return Number(val);
+    }
+}
 
 const cooldownTimer = 10000;
 
@@ -38,6 +48,27 @@ module.exports = {
             interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
 
             const rowMain = new ActionRowBuilder();
+
+            const rowViewUser = new ActionRowBuilder()
+            .addComponents(
+                new UserSelectMenuBuilder()
+                    .setCustomId('userselect')
+                    .setPlaceholder('name#0000')
+                    .setMaxValues(1)
+                    .setMinValues(1)
+            );
+
+            const rowVerify = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('btnconfirm')
+                        .setLabel('Yes')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('btnreject')
+                        .setLabel('No')
+                        .setStyle(ButtonStyle.Danger)
+                );
 
             const addBirthday = new ButtonBuilder()
                     .setCustomId('btnaddbirthday')
@@ -84,26 +115,10 @@ module.exports = {
                                     .setRequired(true)
                             ));
 
-            const rowViewUser = new ActionRowBuilder()
-            .addComponents(
-                new UserSelectMenuBuilder()
-                    .setCustomId('userselect')
-                    .setPlaceholder('name#0000')
-                    .setMaxValues(1)
-                    .setMinValues(1)
-            );
-
-            const rowVerify = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('btnconfirm')
-                        .setLabel('Yes')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId('btnreject')
-                        .setLabel('No')
-                        .setStyle(ButtonStyle.Danger)
-                );
+            const embed = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('Upcoming Birthdays 🎉')
+                    .setDescription('Everyone with a registered birthday within the next two weeks.');
 
             logger.info('COMPONENTS CREATED');
 
@@ -114,18 +129,23 @@ module.exports = {
 
             await interaction.reply({ content: 'Select an action to perform.', ephemeral: true, components: [rowMain] });
 
-            const mainCommand = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('command', err); });
+            const mainCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('command', err); });
 
             if (mainCommand) {
 
                 refreshTimeout(interaction, timeout);
                 logger.info(interaction.user.username + ' COLLECTED mainCommand ' + mainCommand.customId);
 
+/**
+ * btnaddbirthday - Adds user's birthday to database
+ * TODO: Actually use database
+ */
+
                 if (mainCommand.customId === 'btnaddbirthday') {
                     await mainCommand.showModal(modal);
                     await mainCommand.editReply({ content: 'Waiting for reply.', components: [] });
 
-                    const modalSubmit = await interaction.awaitModalSubmit({ time: 10000, filter }).catch(err => { logger.error('modal', err); });
+                    const modalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('modal', err); });
 
                     if (modalSubmit) {
                         refreshTimeout(interaction, timeout);
@@ -151,7 +171,7 @@ module.exports = {
 
                                 if (btnPressConfirmAdd.customId === 'btnconfirm') {
                                     // API DB QUERY ADD ENTRY
-                                    interaction.client._tempBirthdays.set(interaction.user.id, { month: birthMonth, day: birthDay });
+                                    interaction.client._tempBirthdays.set(interaction.user.id, new Birthday(birthMonth, birthDay));
 
                                     await btnPressConfirmAdd.update({ content: "`" + btnPressConfirmAdd.user.username + "`'s birthday successfully recorded. You may dismiss this message.", components: [] })
                                         .then((btnPress_del_i) => { setTimeout(() => { btnPress_del_i.interaction.deleteReply();}, 3000); });
@@ -184,6 +204,12 @@ module.exports = {
                         await mainCommand.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", ephemeral: true });
                     }
                 }
+
+/**
+ * btnremovebirthday - Removes user's birthday from database
+ * TODO: Actually use database
+ */
+
                 else if (mainCommand.customId === 'btnremovebirthday') {
                     await mainCommand.update({ content: 'Are you sure you want to remove your birthday?', ephemeral: true, components: [rowVerify] });
 
@@ -210,12 +236,48 @@ module.exports = {
                         await mainCommand.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
                     }
                 }
+
+/**
+ * btnviewupcoming - Gets and shows birthdays two weeks ahead
+ * TODO: Actually use database
+ */
+
                 else if (mainCommand.customId === 'btnviewupcoming') {
-                    // grab current date
-                    // Somehow grab date 2 weeks from now
-                    // compartmentalize it for ease and speed by grabbing current month and next month, and only checking users WITHIN THOSE MONTHS!
-                    // Something-something... filter...find? all registered birthdays that land within timeframe by creating dates for each entry to compare with?
+                    const now = new Date();
+                    const twoWeeks = 8.64e+7 * 14;
+                    // API DB QUERY GET ENTRIES
+                    const upcomingBirthdays = interaction.client._tempBirthdays.filter(user => {
+                        return new Date(now.getFullYear(), user.month - 1, user.day) <= new Date(Date.now() + twoWeeks);
+                    });
+
+                    if (upcomingBirthdays.size > 0) {
+                        upcomingBirthdays.sort((a, b) => {
+                            const day1 = new Date(now.getFullYear(), a.month - 1, a.day);
+                            const day2 = new Date(now.getFullYear(), b.month - 1, b.day);
+                            return day1 - day2;
+                        });
+                        const membersCollection = await interaction.guild.members.fetch().catch(err => logger.error(err));
+                        let formattedDates = '';
+                        for (const [key, value] of upcomingBirthdays) {
+                            const user = membersCollection.get(key);
+                            let name = '';
+                            user.nickname ? name = user.nickname : name = user.user.username;
+                            formattedDates += Months[value.month].name + ' ' + value.day + ' : ' + name + '\n';
+                        }
+                        embed.setFields({ name: 'Celebrating Soon: ', value: formattedDates });
+                        await interaction.channel.send({ embeds: [embed] });
+                        await interaction.deleteReply();
+                    }
+                    else {
+                        await mainCommand.update({ content: 'No birthdays coming up.', components: [] });
+                    }
                 }
+
+/**
+ * btnviewuser - View specified user's birthday if exists
+ * TODO: Actually use database
+ */
+
                 else if (mainCommand.customId === 'btnviewuser') {
                     await mainCommand.reply({ content: 'Select a member', ephemeral: true, components: [rowViewUser] });
                     interaction.deleteReply();
@@ -235,6 +297,8 @@ module.exports = {
                             await mainCommand.editReply({ content: "`" + userSelect.users.first().username + "` has not registered their birthday.", components: [] });
                         }
                     }
+
+
                     else {
                         logger.info(`${interaction.user.username} NO SELECT userSelect`);
                         await mainCommand.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });

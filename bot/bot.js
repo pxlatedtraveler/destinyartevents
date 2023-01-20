@@ -27,7 +27,7 @@ const Member = require('./Members.js');
 const member = Member.Member;
 // const utils = Utils.utils;
 
-const client = new Client({ intents: [GatewayIntentBits.Guilds], partials: [Partials.Channel] });
+const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers], partials: [Partials.Channel] });
 client.commands = new Collection();
 client.cooldowns = new Collection();
 client._tempBirthdays = new Collection();
