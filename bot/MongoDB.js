@@ -1,10 +1,15 @@
+/**
+ * Requires 27017 open via security group
+ * Simple code, logs name of current dbs
+ */
+
 process.traceDeprecation = true;
 require('dotenv').config();
 const { MongoClient, ServerApiVersion } = require('mongodb');
 
 const token = process.env.ATLASADMIN;
 
-const uri = `mongodb+srv://admin:${token}@dce.dmkhr.mongodb.net/dce?retryWrites=true&w=majority?directConnection=true`;
+const uri = `mongodb+srv://admin:${token}@destinyartevents.zgz8ewh.mongodb.net/dce?retryWrites=true&w=majority?directConnection=true`;
 
 main();
 

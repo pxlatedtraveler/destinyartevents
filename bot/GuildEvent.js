@@ -22,6 +22,7 @@
         this.roleName = options.roleName || this.name + new Date().getFullYear;
         this.twitterTag = options.description || this.name + new Date().getFullYear;
         this.description = options.description || `This is a new event, ${this.name}.`;
+        this.year = new Date().getFullYear();
 
         this._startDate = null;
         if (options.startDate) {

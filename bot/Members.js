@@ -8,10 +8,11 @@ class Member {
         this.username = discordUser.username;
         this.discriminator = discordUser.discriminator;
         this.tag = discordUser.tag;
+        this.guildNickname = discordUser.nickname;
         this._birthday = null;
         this.inCurrentEvent = false;
         this.currentEvent = null;
-        this.pastEvents = [];
+        this._pastEvents = [];
         this._blocked = [];
         this._derogatoryMarks = [];
         this.isActive = true;
@@ -38,6 +39,18 @@ class Member {
         else {
             this._birthday = new Date(year, value.month - 1, value.day);
         }
+    }
+
+    get pastEvents() {
+        // but parsed into a string!
+        return this._pastEvents;
+    }
+    set pastEvent(value) {
+        // this function is to be ran at end of each event
+        // called with forEach on each member
+        // add member.pastEvent = guildEvent.id;
+        // query will SET?ADD? current event participant table row with member ID
+        this._pastEvents.push(value);
     }
 
     /**

@@ -9,6 +9,7 @@
 
 process.traceDeprecation = true;
 require('dotenv').config();
+const mysql = require('mysql2');
 const logger = require('../util/logger.js');
 // --Discord Specific
 const fs = require('node:fs');
@@ -27,10 +28,25 @@ const Member = require('./Members.js');
 const member = Member.Member;
 // const utils = Utils.utils;
 
+const mysql_host = process.env.MYSQL_HOST;
+const mysql_user = process.env.MYSQL_USER;
+const mysql_auth = process.env.MYSQL_AUTH;
+const mysql_db = process.env.MYSQL_DATABASE;
+
 const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers], partials: [Partials.Channel] });
 client.commands = new Collection();
 client.cooldowns = new Collection();
 client._tempBirthdays = new Collection();
+
+client.db = mysql.createPool({
+    connectionLimit: 10,
+	host: mysql_host,
+	user: mysql_user,
+	password: mysql_auth,
+	database: mysql_db,
+	queueLimit: 0,
+	charset: 'utf8mb4_general_ci',
+});
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -67,6 +83,13 @@ client.on(Events.InteractionCreate, async interaction => {
 
 client.once(Events.ClientReady, c => {
     logger.info(`Ready! Logged in as ${c.user.tag}`);
+    client.db.getConnection(function(poolerr, connection) {
+        if (poolerr) console.log(poolerr);
+        connection.query(`SHOW TABLES`, function(err, results) {
+            if (err) console.log(err);
+            console.log('Database Tables: ', results);
+        });
+    });
 });
 
 client.on(Events.ShardError, error => {
