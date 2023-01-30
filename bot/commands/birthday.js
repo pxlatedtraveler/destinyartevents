@@ -1,4 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, EmbedBuilder, UserSelectMenuBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
+const { Months, getTimeLeft, refreshTimeout, setCooldown, validateDate } = require('../Utils');
 const logger = require('../../util/logger.js');
 
 class Birthday {
@@ -13,21 +14,6 @@ class Birthday {
 
 const cooldownTimer = 10000;
 
-const Months = {
-    '1': { id: '1', name: 'January', days: 31 },
-    '2': { id: '2', name: 'February', days: 29 },
-    '3': { id: '3', name: 'March', days: 31 },
-    '4': { id: '4', name: 'April', days: 30 },
-    '5': { id: '5', name: 'May', days: 31 },
-    '6': { id: '6', name: 'June', days: 30 },
-    '7': { id: '7', name: 'July', days: 31 },
-    '8': { id: '8', name: 'August', days: 31 },
-    '9': { id: '9', name: 'September', days: 30 },
-    '10': { id: '10', name: 'October', days: 31 },
-    '11': { id: '11', name: 'November', days: 30 },
-    '12': { id: '12', name: 'December', days: 31 }
-};
-
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('birthday')
@@ -40,12 +26,7 @@ module.exports = {
             await interaction.reply({ content: "You've used this command recently. Try again after `" + getTimeLeft(userTimeout.timeout, userTimeout.startTime) + " seconds`.", ephemeral: true });
         }
         else {
-            logger.info('SETTING COOLDOWN');
-            const timeout = setTimeout(() => {
-                interaction.client.cooldowns.delete(interaction.user.id);
-                logger.info('COOLDOWN DELETED IN TIMEOUT: ' + interaction.client.cooldowns);
-            }, cooldownTimer);
-            interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
+            const timeout = setCooldown(interaction, cooldownTimer);
 
             const rowMain = new ActionRowBuilder();
 
@@ -317,38 +298,8 @@ module.exports = {
     }
 };
 
-function validateDate(month, day) {
-    if (month < 10 && month.length > 1) month = month.slice(1);
-    if (day < 10 && day.length > 1) day = day.slice(1);
-    const data = { m: month, d: day, valid: false, error: { code: 0, msg: `Month entry ${Months[month]} is invalid.` } };
-    if (Months[month]) {
-        data.error.code = 1;
-        data.error.msg = `Date entry ${day} is invalid for the month of ${Months[month].name}.`;
-        if (day <= Months[month].days && day > 0) {
-            data.valid = true;
-            data.error.code = null;
-            data.error.msg = '';
-            return data;
-        }
-    }
-    return data;
-}
-
-function refreshTimeout(interaction, timeout) {
-    interaction.client.cooldowns.delete(interaction.user.id);
-    timeout.refresh();
-    interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
-}
-
-function getTimeLeft(timeout, startTime) {
-    return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
-}
 // All is working.
-// Need to re-phrase all logs and maybe delete some? (using pino).
-// Then just add if statements for Upcoming Birthdays and Lookup Users.
 // Will need stress-testing of multiple timeout object creations.
-// For Specific user, use userOption builder.
 // For Upcoming Birthdays, add another button option action row: By month (then reply with down menu [then reply with results]), by fortnite (then reply with results).
 // Just realized, View Birthdays would have subcommands too, such as "specific user" so use a userOptions builder, and view all birthdays for specific month.
-
 // Add another property to user timeout object, for hits. How many hits = how many times a user has used slash command. If they are spamming, then ban temporarily for longer period.
