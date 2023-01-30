@@ -17,14 +17,8 @@ const path = require('node:path');
 const { Client, Events, GatewayIntentBits, Collection, Partials } = require('discord.js');
 const token = process.env.BOTTOKEN;
 // --Bot Specific
-// const Roles = require('./roles.json');
-// const GuildEvent = require('./GuildEvent.js');
 const Member = require('./Members.js');
 // const Utils = require('./Utils');
-
-// --Bot Specific Modules
-// const roles = Roles.roles;
-// const guildEvent = GuildEvent.GuildEvent;
 const member = Member.Member;
 // const utils = Utils.utils;
 

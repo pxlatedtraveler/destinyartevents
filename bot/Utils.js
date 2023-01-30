@@ -1,13 +1,14 @@
-exports.utils =
-{
-    checkRolePriviledge: async function(interaction, roleID) {
-        const role = await interaction.guild.roles.fetch(roleID);
-        const roleMembers = role.members;
-        const user = interaction.user;
+const { Collection } = require('discord.js');
 
-        if (roleMembers.has(user.id)) {
-            return true;
-        }
-        return false;
+async function priviledgeCheck(interaction, roleNames) {
+    await interaction.guild.members.fetch();
+    const guildRoles = await interaction.guild.roles.fetch();
+    let roles = new Collection();
+    for (let i = 0; i < roleNames.length; i++) {
+        const role = await guildRoles.find(r => r.name === roleNames[i]);
+        roles = roles.concat(role.members);
     }
-};
+    return roles;
+}
+
+module.exports = { priviledgeCheck };
