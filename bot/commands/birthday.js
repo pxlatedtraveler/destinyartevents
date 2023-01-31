@@ -247,6 +247,7 @@ module.exports = {
                         }
                         embed.setFields({ name: 'Celebrating Soon: ', value: formattedDates });
                         await interaction.channel.send({ embeds: [embed] });
+                        // await mainCommand.update({ embeds: [embed], components: [] });
                         await interaction.deleteReply();
                     }
                     else {
