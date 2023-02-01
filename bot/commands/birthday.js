@@ -31,12 +31,12 @@ module.exports = {
             const rowMain = new ActionRowBuilder();
 
             const rowViewUser = new ActionRowBuilder()
-            .addComponents(
-                new UserSelectMenuBuilder()
-                    .setCustomId('userselect')
-                    .setPlaceholder('name#0000')
-                    .setMaxValues(1)
-                    .setMinValues(1)
+                .addComponents(
+                    new UserSelectMenuBuilder()
+                        .setCustomId('userselect')
+                        .setPlaceholder('name#0000')
+                        .setMaxValues(1)
+                        .setMinValues(1)
             );
 
             const rowVerify = new ActionRowBuilder()
@@ -52,49 +52,50 @@ module.exports = {
                 );
 
             const addBirthday = new ButtonBuilder()
-                    .setCustomId('btnaddbirthday')
-                    .setLabel('Add Birthday')
-                    .setStyle(ButtonStyle.Success);
+                .setCustomId('btnaddbirthday')
+                .setLabel('Add Birthday')
+                .setStyle(ButtonStyle.Success);
 
             const removeBirthday = new ButtonBuilder()
-                    .setCustomId('btnremovebirthday')
-                    .setLabel('Remove Birthday')
-                    .setStyle(ButtonStyle.Danger);
+                .setCustomId('btnremovebirthday')
+                .setLabel('Remove Birthday')
+                .setStyle(ButtonStyle.Danger);
 
             const viewUpcoming = new ButtonBuilder()
-                    .setCustomId('btnviewupcoming')
-                    .setLabel('Upcoming Birthdays')
-                    .setStyle(ButtonStyle.Primary);
+                .setCustomId('btnviewupcoming')
+                .setLabel('Upcoming Birthdays')
+                .setStyle(ButtonStyle.Primary);
 
             const lookupUser = new ButtonBuilder()
-                    .setCustomId('btnviewuser')
-                    .setLabel('Lookup User')
-                    .setStyle(ButtonStyle.Primary);
+                .setCustomId('btnviewuser')
+                .setLabel('Lookup User')
+                .setStyle(ButtonStyle.Primary);
 
             const modal = new ModalBuilder()
-                    .setCustomId('birthdaymodal')
-                    .setTitle('Register your birthday')
-                    .addComponents(
-                        new ActionRowBuilder()
-                            .addComponents(
-                                new TextInputBuilder()
-                                    .setCustomId('textinputmonth')
-                                    .setLabel('Input month (Numerical value)')
-                                    .setStyle(TextInputStyle.Short)
-                                    .setMinLength(1)
-                                    .setMaxLength(2)
-                                    .setRequired(true)
-                            ),
-                        new ActionRowBuilder()
-                            .addComponents(
-                                new TextInputBuilder()
-                                    .setCustomId('textinputday')
-                                    .setLabel('Input day')
-                                    .setStyle(TextInputStyle.Short)
-                                    .setMinLength(1)
-                                    .setMaxLength(2)
-                                    .setRequired(true)
-                            ));
+                .setCustomId('birthdaymodal')
+                .setTitle('Register your birthday')
+                .addComponents(
+                    new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('textinputmonth')
+                                .setLabel('Input month (Numerical value)')
+                                .setStyle(TextInputStyle.Short)
+                                .setMinLength(1)
+                                .setMaxLength(2)
+                                .setRequired(true)
+                        ),
+                    new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('textinputday')
+                                .setLabel('Input day')
+                                .setStyle(TextInputStyle.Short)
+                                .setMinLength(1)
+                                .setMaxLength(2)
+                                .setRequired(true)
+                        )
+                );
 
             const embed = new EmbedBuilder()
                     .setColor(0x0099FF)
@@ -126,7 +127,7 @@ module.exports = {
                     await mainCommand.showModal(modal);
                     await mainCommand.editReply({ content: 'Waiting for reply.', components: [] });
 
-                    const modalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('modal', err); });
+                    const modalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('modalSubmit', err); });
 
                     if (modalSubmit) {
                         refreshTimeout(interaction, timeout);

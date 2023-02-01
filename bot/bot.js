@@ -31,6 +31,7 @@ const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBit
 client.commands = new Collection();
 client.cooldowns = new Collection();
 client._tempBirthdays = new Collection();
+client._tempEvents = new Collection();
 
 client.db = mysql.createPool({
     connectionLimit: 10,

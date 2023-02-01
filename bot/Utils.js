@@ -27,6 +27,19 @@ async function priviledgeCheck(interaction, roleNames) {
     return roles;
 }
 
+function arrayToString(array) {
+    let string = '';
+    for (let i = 0; i < array.length; i++) {
+        if (i < array.length - 1) {
+            string += '`' + array[i].toString() + '`' + ' ';
+        }
+        else {
+            string += '`' + array[i].toString() + '`';
+        }
+    }
+    return string;
+}
+
 function getTimeLeft(timeout, startTime) {
     return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
 }
@@ -64,4 +77,5 @@ function validateDate(month, day) {
     return data;
 }
 
-module.exports = { Months, priviledgeCheck, getTimeLeft, refreshTimeout, setCooldown, validateDate };
+
+module.exports = { Months, priviledgeCheck, arrayToString, getTimeLeft, refreshTimeout, setCooldown, validateDate };
