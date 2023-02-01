@@ -100,7 +100,7 @@ module.exports = {
                 if (mainCommand) {
 
                     refreshTimeout(interaction, timeout);
-                    logger.info(interaction.user.usename + 'COLLECTED mainCommand ' + mainCommand.customId);
+                    logger.info(interaction.user.username + 'COLLECTED mainCommand ' + mainCommand.customId);
 
 /**
  * btncreate - User chooses to Create an event
@@ -184,18 +184,15 @@ module.exports = {
                                 if (artEvent) {
                                     await modalSubmitDelete.update({ content: `Are you sure you want to delete ${artEvent.name}?`, components: [rowVerify] });
 
-                                    const btnConfirmDelete = interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button });
+                                    const btnConfirmDelete = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button });
 
                                     if (btnConfirmDelete) {
-                                        // CONSOLE LOG BTNCONFIRMDELETE CAUSE ITS GETTING LOST AT NO CUSTOM ID!!!
-                                        // and therefore it's never reading any of the if else statements below...
                                         refreshTimeout(interaction, timeout);
                                         logger.info(`${interaction.user.username} COLLECTED btnConfirmDelete ` + btnConfirmDelete.customId);
 
                                         if (btnConfirmDelete.customId === 'btnconfirm') {
                                             // API DB QUERY DELETE EVENT ENTRY
                                             interaction.client._tempEvents.delete(artEvent.id);
-                                            console.log(interaction.client._tempEvents);
 
                                             await btnConfirmDelete.update({ content: '`' + artEvent.name + '`' + ' successfully removed. You may dismiss this message.', components: [] });
                                             await btnConfirmDelete.followUp({ content: interaction.user.toString() + ' deleted event ' + '`' + artEvent.name + '`', ephemeral: false });
