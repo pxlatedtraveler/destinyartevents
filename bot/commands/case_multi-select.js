@@ -6,12 +6,8 @@ const cooldownTimer = 5000;
 
 module.exports = {
     data: new SlashCommandBuilder()
-        .setName('plight')
-        .setDescription('Used for testing snippets of code and techniques for when I find myself in trouble'),
-/*         .addUserOption((option =>
-            option.setName('finduser')
-                .setDescription('Select a user')
-                .setRequired(true))), THISWORKS */
+        .setName('case_multiselect')
+        .setDescription('Working example of multiple StringSelect'),
 
     async execute(interaction) {
         const row = new ActionRowBuilder()

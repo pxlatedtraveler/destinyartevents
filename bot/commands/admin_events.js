@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
-const { Months, priviledgeCheck, arrayToString, getTimeLeft, refreshTimeout, setCooldown, validateDate } = require('../Utils');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { priviledgeCheck, arrayToString, getTimeLeft, refreshTimeout, setCooldown } = require('../Utils');
 const logger = require('../../util/logger.js');
 
 // const cooldownTimer = 15000;
@@ -72,6 +72,21 @@ module.exports = {
                             .setStyle(ButtonStyle.Danger)
                     );
 
+                    const rowEdit = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('selectedit')
+                                .setPlaceholder('Select all you want to change')
+                                .addOptions([
+                                    { label: 'Id', description: 'Change event Id', value: 'id' },
+                                    { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
+                                    { label: 'Pre-registration start date', description: 'Change Pre-Registration start date', value: 'preregstart' },
+                                    { label:  'Pre-registration end date', description: 'Change Pre-Registration end date', value: 'preregend' },
+                                    { label: 'Public registration start date', description: 'Change Public Registration start date', value: 'pubregstart' },
+                                    { label:  'Public registration end date', description: 'Change Public Registration end date', value: 'pubreggend' },
+                                ])
+                        );
+
                     const modal = new ModalBuilder()
                         .setCustomId('modalnameinput')
                         .setTitle('Type in name of event')
@@ -95,7 +110,7 @@ module.exports = {
 
                 await interaction.reply({ content: arrayToString(permittedRoles) + ' permitted.\n**Create**, **Edit** or **Delete** an event.', ephemeral: true, components: [rowMain] });
 
-                const mainCommand = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('mainCommand', err) });
+                const mainCommand = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('mainCommand', err); });
 
                 if (mainCommand) {
 
@@ -117,7 +132,7 @@ module.exports = {
 
                             refreshTimeout(interaction, timeout);
                             logger.info(interaction.user.username + 'COLLECTED btnConfirmCreate ' + btnConfirmCreate.customId);
-        
+
                             if (btnConfirmCreate.customId === 'btnconfirm') {
                                 // START EVENT CREATION
                                 btnConfirmCreate.update({ content: 'Begin Event creation.', components: [] });
@@ -149,8 +164,9 @@ module.exports = {
                             refreshTimeout(interaction, timeout);
                             logger.info(interaction.user.username + 'COLLECTED modalSubmitEdit');
                             const eventName = modalSubmitEdit.fields.getTextInputValue('textinputname');
-                            if (pastEvents.includes(eventName)) {
-                                await modalSubmitEdit.update({ content: 'What do you want to edit? -TODO' });
+                            const artEvent = interaction.client._tempEvents.get(eventName);
+                            if (artEvent) {
+                                await modalSubmitEdit.update({ content: 'What do you want to edit? -TODO', components: [rowEdit] });
                             }
                             else {
                                 await modalSubmitEdit.update({ content: 'Response doesn\'t match an existing event name.' });
@@ -170,7 +186,7 @@ module.exports = {
                     else if (mainCommand.customId === 'btndelete') {
                         const pastEvents = ['dotl2022', 'dsse2022', 'crimsondays2023'];
                         const adminPriviledge = await priviledgeCheck(interaction, ['Admin']);
-                        if(adminPriviledge.has(interaction.user.id)) {
+                        if (adminPriviledge.has(interaction.user.id)) {
                             await mainCommand.showModal(modal);
                             await mainCommand.editReply({ content: 'Type in the name of the event you want to edit. The most recent events include: ' + arrayToString(pastEvents), components: [] });
 
@@ -204,7 +220,7 @@ module.exports = {
                                     else {
                                         logger.info(`${interaction.user.username} NO PRESS btnConfirmDelete!`);
                                         await modalSubmitDelete.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
-        
+
                                     }
                                 }
                                 else {
@@ -213,7 +229,7 @@ module.exports = {
                             }
                             else {
                                 logger.info(`${interaction.user.username} NO SUBMIT modalSubmitDelete!`);
-                                await mainCommand.editReply({ content: 'Interaction' })
+                                await mainCommand.editReply({ content: 'Interaction' });
                             }
                         }
                         else {
