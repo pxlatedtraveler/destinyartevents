@@ -1,4 +1,4 @@
-const { Collection } = require('discord.js');
+const { Collection, inlineCode } = require('discord.js');
 const logger = require('../util/logger.js');
 
 const Months = {
@@ -31,10 +31,10 @@ function arrayToString(array) {
     let string = '';
     for (let i = 0; i < array.length; i++) {
         if (i < array.length - 1) {
-            string += '`' + array[i].toString() + '`' + ' ';
+            string += inlineCode(array[i].toString()) + ' ';
         }
         else {
-            string += '`' + array[i].toString() + '`';
+            string += inlineCode(array[i].toString());
         }
     }
     return string;

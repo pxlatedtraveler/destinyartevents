@@ -1,30 +1,40 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, inlineCode } = require('discord.js');
 const { priviledgeCheck, arrayToString, getTimeLeft, refreshTimeout, setCooldown } = require('../Utils');
 const logger = require('../../util/logger.js');
 
-// const cooldownTimer = 15000;
 const permittedRoles = ['Admin', 'Mod'];
 
 const cooldownTimer = 10000;
 
 class ArtEvent {
-    constructor(name, id) {
-        this.name = name;
-        this.id = id;
-        this.pre_startDate;
-        this.pre_endDate;
-        this.pub_startDate;
-        this.pub_endDate;
+    constructor(id, name, type) {
+        this._id = id;
+        this._name = name;
+        this.role;
+        this.type = type;
+        this._pre_startDate;
+        this._pre_endDate;
+        this._pub_startDate;
+        this._pub_endDate;
     }
-    // Get Set Pre Start
-    // Get Set Pre End
-    // Get Set Pub Start
-    // Get Set Pub End
 
-    // Get Set Name
-    // Get Set ID
+    get id() { return this._id; }
+    set id(val) { if (typeof val === 'string') this._id = val; }
 
-    // Maybe I also need event type... exchange solo hybrind, only exchange, only solo (zine media type) etc
+    get name() { return this.name; }
+    set name(val) { if (typeof val === 'string') this._name = val; }
+
+    get pre_startDate() { return this._pre_startDate; }
+    set pre_startDate(val) { if (val) this._pre_startDate = val; }
+
+    get pre_endDate() { return this._pre_endDate; }
+    set pre_endDate(val) { if (val) this._pre_endDate = val; }
+
+    get pub_startDate() { return this._pub_startDate; }
+    set pub_startDate(val) { if (val) this._pub_startDate = val; }
+
+    get pub_endDate() { return this._pub_endDate; }
+    set pub_endDate(val) { if (val) this._pub_endDate = val; }
 }
 
 module.exports = {
@@ -77,13 +87,14 @@ module.exports = {
                             new StringSelectMenuBuilder()
                                 .setCustomId('selectedit')
                                 .setPlaceholder('Select all you want to change')
+                                // .setMinValues(5)
+                                .setMaxValues(5)
                                 .addOptions([
                                     { label: 'Id', description: 'Change event Id', value: 'id' },
                                     { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
-                                    { label: 'Pre-registration start date', description: 'Change Pre-Registration start date', value: 'preregstart' },
-                                    { label:  'Pre-registration end date', description: 'Change Pre-Registration end date', value: 'preregend' },
-                                    { label: 'Public registration start date', description: 'Change Public Registration start date', value: 'pubregstart' },
-                                    { label:  'Public registration end date', description: 'Change Public Registration end date', value: 'pubreggend' },
+                                    { label: 'Role', description: 'Change event\'s role', value: 'role' },
+                                    { label: 'Pre-registration dates', description: 'Change Pre-Registration date range', value: 'preregistration' },
+                                    { label: 'Public registration dates', description: 'Change Public Registration date range', value: 'publicregistration' },
                                 ])
                         );
 
@@ -103,7 +114,7 @@ module.exports = {
                                     )
                             );
 
-                const testEvent = new ArtEvent('Destiny Secret Santa Event 2022', 'dsse2022');
+                const testEvent = new ArtEvent('dsse2022', 'Destiny Secret Santa Event 2022');
                 interaction.client._tempEvents.set(testEvent.id, testEvent);
 
                 const filter = intr => intr.user.id === interaction.user.id;
@@ -164,9 +175,27 @@ module.exports = {
                             refreshTimeout(interaction, timeout);
                             logger.info(interaction.user.username + 'COLLECTED modalSubmitEdit');
                             const eventName = modalSubmitEdit.fields.getTextInputValue('textinputname');
+                            // QUERY DB FOR EVENT WITH ID FROM INPUT
                             const artEvent = interaction.client._tempEvents.get(eventName);
                             if (artEvent) {
                                 await modalSubmitEdit.update({ content: 'What do you want to edit? -TODO', components: [rowEdit] });
+
+                                const stringSelectEdit = await interaction.channel.awaitMessageComponent({ time: 30000, filter, ComponentType: ComponentType.StringSelect });
+
+                                if (stringSelectEdit) {
+                                    refreshTimeout(interaction, timeout);
+                                    logger.info(interaction.user.username + 'COLLECTED stringSelectEdit');
+                                    const changeValues = stringSelectEdit.values;
+
+                                    if (changeValues) {
+                                        await stringSelectEdit.update({ content: `You selected ${inlineCode(changeValues)}`, components: [] });
+                                    }
+                                    else {
+                                        logger.info(`${interaction.user.username} NO SELECT stringSelectEdit!`);
+                                        await mainCommand.editReply({ content: 'Interaction expired. Try again after `' + cooldownTimer / 1000 + ' seconds`.', components: [] });
+                                    }
+
+                                }
                             }
                             else {
                                 await modalSubmitEdit.update({ content: 'Response doesn\'t match an existing event name.' });
@@ -250,3 +279,13 @@ module.exports = {
     // execute
     }
 };
+
+// TODO - For creating or editing date, have user type it in such as 'August 10, 2023'
+// And therefore, we'll only need 2 input boxes for start and end date, so we can validate range.
+// Basically, 1 - Date for start (as formatted above), 2 - Time (ask for military), 3 - Date for end, 4 - Time, 5 - Timezone
+// TODO - FIGURE OUT HOW TO HANDLE DST vs STANDARD TIME
+// TODO - Timing issues with select menu. If you select none, cooldown resets sooner than timer period for command.
+// When the above happens, if user uses command again, the cooldown wont be there to stop them. Bot errors out.
+// Research that. See if there's a way to kill the connection. Like, see if you can find last interaction by user
+// and compare the ID. If it's the same slash command, either don't allow them to continue OR somehow kill it?
+// For Science: console log old interaction ID, and console log new interaction ID. See how the two objects compare in general.

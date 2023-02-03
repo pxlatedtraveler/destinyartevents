@@ -33,7 +33,8 @@ client.cooldowns = new Collection();
 client._tempBirthdays = new Collection();
 client._tempEvents = new Collection();
 
-client.db = mysql.createPool({
+(async () => {
+    client.db = await mysql.createPool({
     connectionLimit: 10,
 	host: mysql_host,
 	user: mysql_user,
@@ -41,7 +42,8 @@ client.db = mysql.createPool({
 	database: mysql_db,
 	queueLimit: 0,
 	charset: 'utf8mb4_general_ci',
-});
+    });
+})();
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -76,9 +78,10 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 });
 
-client.once(Events.ClientReady, c => {
+client.once(Events.ClientReady, async c => {
     logger.info(`Ready! Logged in as ${c.user.tag}`);
     client.db.getConnection(function(poolerr, connection) {
+        logger.info('CONNECTING');
         if (poolerr) console.log(poolerr);
         connection.query(`SHOW TABLES`, function(err, results) {
             if (err) console.log(err);

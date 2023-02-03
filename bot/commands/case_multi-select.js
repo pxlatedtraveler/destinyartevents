@@ -29,7 +29,7 @@ module.exports = {
 
         const filter = intr => intr.user.id === interaction.user.id;
         await interaction.reply({ content: 'Choose at least two, and up to three options!', components: [row] });
-        const mainCommand = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.SelectMenu }).catch(err => { logger.error(err); });
+        const mainCommand = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.StringSelect }).catch(err => { logger.error(err); });
 
         if (mainCommand) {
             console.log(mainCommand.values);
