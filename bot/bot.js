@@ -83,6 +83,7 @@ client.once(Events.ClientReady, c => {
         connection.query(`SHOW TABLES`, function(err, results) {
             if (err) console.log(err);
             console.log('Database Tables: ', results);
+            connection.release();
         });
     });
 });
