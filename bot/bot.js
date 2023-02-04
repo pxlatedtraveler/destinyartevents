@@ -34,7 +34,7 @@ client._tempBirthdays = new Collection();
 client._tempEvents = new Collection();
 
 (async () => {
-    client.db = await mysql.createPool({
+    client.db = mysql.createPool({
     connectionLimit: 10,
 	host: mysql_host,
 	user: mysql_user,
@@ -43,6 +43,7 @@ client._tempEvents = new Collection();
 	queueLimit: 0,
 	charset: 'utf8mb4_general_ci',
     });
+    logger.info('CONNECTED');
 })();
 
 const commandsPath = path.join(__dirname, 'commands');

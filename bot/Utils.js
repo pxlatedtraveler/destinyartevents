@@ -44,6 +44,17 @@ function getTimeLeft(timeout, startTime) {
     return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
 }
 
+function isDaylightSavings(date) {
+    if (date.getTimezoneOffset() === new Date(date.getFullYear(), 6).getTimezoneOffset()) return true;
+    return false;
+}
+
+function refreshTimeout(interaction, timeout) {
+    interaction.client.cooldowns.delete(interaction.user.id);
+    timeout.refresh();
+    interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
+}
+
 function setCooldown(interaction, cooldownTimer) {
     logger.info('SETTING COOLDOWN');
     const timeout = setTimeout(() => {
@@ -52,12 +63,6 @@ function setCooldown(interaction, cooldownTimer) {
     }, cooldownTimer);
     interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
     return timeout;
-}
-
-function refreshTimeout(interaction, timeout) {
-    interaction.client.cooldowns.delete(interaction.user.id);
-    timeout.refresh();
-    interaction.client.cooldowns.set(interaction.user.id, { timeout: timeout, startTime: Date.now() });
 }
 
 function validateDate(month, day) {
@@ -78,4 +83,4 @@ function validateDate(month, day) {
 }
 
 
-module.exports = { Months, priviledgeCheck, arrayToString, getTimeLeft, refreshTimeout, setCooldown, validateDate };
+module.exports = { Months, priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate };
