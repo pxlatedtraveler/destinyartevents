@@ -44,6 +44,11 @@ function getTimeLeft(timeout, startTime) {
     return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
 }
 
+/**
+ * https://help.bungie.net/hc/en-us/articles/360049199911-Destiny-2-Ritual-Reset-Guide
+ * @param {*} date a date object to pass that will be checked against an active daylight savings date, July 1
+ * @returns {boolean}
+ */
 function isDaylightSavings(date) {
     if (date.getTimezoneOffset() === new Date(date.getFullYear(), 6).getTimezoneOffset()) return true;
     return false;

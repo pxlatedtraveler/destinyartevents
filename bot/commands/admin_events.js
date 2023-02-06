@@ -1,40 +1,55 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ComponentType, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, inlineCode } = require('discord.js');
-const { priviledgeCheck, arrayToString, getTimeLeft, refreshTimeout, setCooldown } = require('../Utils');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, inlineCode } = require('discord.js');
+const { priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown } = require('../Utils');
 const logger = require('../../util/logger.js');
 
 const permittedRoles = ['Admin', 'Mod'];
 
 const cooldownTimer = 10000;
 
+const EventType = new Collection()
+    .set('EXCHANGE', { type: 'exchange', value: 0 })
+    .set('OPEN', { type: 'open', value: 1 })
+    .set('LIMITED', { type: 'limited', value: 2 });
+
 class ArtEvent {
-    constructor(id, name, type) {
+    constructor(id, name, role, type) {
+        this.type = type;
         this._id = id;
         this._name = name;
-        this.role;
-        this.type = type;
-        this._pre_startDate;
-        this._pre_endDate;
-        this._pub_startDate;
-        this._pub_endDate;
+        this._role = role;
+        this._dueDate;
+        this._discord_startDate;
+        this._discord_endDate;
+        this._public_startDate;
+        this._public_endDate;
     }
 
+    get type() { return this._type; }
+    set type(val) { EventType.has(val) ? this._type = val : logger.error('ARTEVENT: type SET val not EventType'); }
+
     get id() { return this._id; }
-    set id(val) { if (typeof val === 'string') this._id = val; }
+    set id(val) { typeof val === 'string' ? this._id = val : logger.error('ARTEVENT: id SET val not String'); }
 
     get name() { return this.name; }
-    set name(val) { if (typeof val === 'string') this._name = val; }
+    set name(val) { typeof val === 'string' ? this._name = val : logger.error('ARTEVENT: name SET val not String'); }
 
-    get pre_startDate() { return this._pre_startDate; }
-    set pre_startDate(val) { if (val) this._pre_startDate = val; }
+    // getset role
+    // getset dueDate
 
-    get pre_endDate() { return this._pre_endDate; }
-    set pre_endDate(val) { if (val) this._pre_endDate = val; }
-
-    get pub_startDate() { return this._pub_startDate; }
-    set pub_startDate(val) { if (val) this._pub_startDate = val; }
-
-    get pub_endDate() { return this._pub_endDate; }
-    set pub_endDate(val) { if (val) this._pub_endDate = val; }
+    get registrationtDate() { return this._discord_startDate; }
+    set registrationtDate(val) {
+        if (val instanceof Date) {
+            const day = 8.64e+7;
+            const hour = isDaylightSavings(val) ? 10 : 9;
+            this._discord_startDate = val;
+            this._discord_startDate.setHours(hour, 0, 0, 0);
+            this._discord_endDate = new Date(this._discord_startDate.getTime() + (day * 5));
+            this._public_startDate = new Date(this._discord_endDate.getTime());
+            this._public_endDate = new Date(this._public_endDate.getTime() + (day * 2));
+            this._discord_endDate.setHours(hour - 1, 59, 59);
+            this._public_endDate.setHours(hour - 1, 59, 59);
+        }
+    }
 }
 
 module.exports = {
@@ -66,6 +81,22 @@ module.exports = {
                             .setStyle(ButtonStyle.Danger)
                     );
 
+                const modalId = new ModalBuilder()
+                    .setCustomId('modalnameinput')
+                    .setTitle('Type in name of event')
+                        .addComponents(
+                            new ActionRowBuilder()
+                                .addComponents(
+                                    new TextInputBuilder()
+                                        .setCustomId('textinputname')
+                                        .setLabel('Event Id (ie: dsse2022)')
+                                        .setStyle(TextInputStyle.Short)
+                                        .setMinLength(1)
+                                        .setMaxLength(20)
+                                        .setRequired(true)
+                                )
+                        );
+
                 const rowMain = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder()
@@ -82,37 +113,95 @@ module.exports = {
                             .setStyle(ButtonStyle.Danger)
                     );
 
-                    const rowEdit = new ActionRowBuilder()
+                    const rowEditSelect = new ActionRowBuilder()
                         .addComponents(
                             new StringSelectMenuBuilder()
                                 .setCustomId('selectedit')
                                 .setPlaceholder('Select all you want to change')
                                 // .setMinValues(5)
-                                .setMaxValues(5)
+                                .setMaxValues(6)
                                 .addOptions([
                                     { label: 'Id', description: 'Change event Id', value: 'id' },
                                     { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
                                     { label: 'Role', description: 'Change event\'s role', value: 'role' },
-                                    { label: 'Pre-registration dates', description: 'Change Pre-Registration date range', value: 'preregistration' },
-                                    { label: 'Public registration dates', description: 'Change Public Registration date range', value: 'publicregistration' },
+                                    { label: 'Due date', description: 'Change event\'s due date', value: 'date' },
+                                    { label: 'Discord signup dates', description: 'Change Discord signup date range', value: 'discordsignup' },
+                                    { label: 'Public signup dates', description: 'Change Public signup date range', value: 'publicsignup' },
                                 ])
                         );
 
-                    const modal = new ModalBuilder()
-                        .setCustomId('modalnameinput')
-                        .setTitle('Type in name of event')
-                            .addComponents(
-                                new ActionRowBuilder()
-                                    .addComponents(
-                                        new TextInputBuilder()
-                                            .setCustomId('textinputname')
-                                            .setLabel('Event Name (ie: dsse2022)')
-                                            .setStyle(TextInputStyle.Short)
-                                            .setMinLength(1)
-                                            .setMaxLength(20)
-                                            .setRequired(true)
-                                    )
-                            );
+                    // Event Edit and Creation components
+                    // Name types
+
+                    const modalNames = new ModalBuilder()
+                        .setCustomId('modaleditnames')
+                        .setTitle('Set new values');
+
+                    const rowEventId = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editid')
+                                .setLabel('Input new event id (ie: dsse2022)')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(20).setRequired(true));
+
+                    const rowEventName = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editname')
+                                .setLabel('Input new event name (ie: Secret Santa)')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(35).setRequired(true));
+
+                    // Date types
+
+                    const modalDates = ModalBuilder()
+                        .setCustomId('modaleditdates')
+                        .setTitle('Set new values');
+
+                    const rowDueDateMonth = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editduedatemonth')
+                                .setLabel('Input new event due month (numerical month)')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
+
+                    const rowDueDateDay = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editduedateday')
+                                .setLabel('Input new event due day')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
+
+                    // Discord Registration Date
+
+                    const rowPreRegStartMonth = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editpreregstartmonth')
+                                .setLabel('Input new start month (numerical month)')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
+
+                    const rowPreRegStartDay = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editpreregstartday')
+                                .setLabel('Input new start day')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
+
+                    // Public Registration Date
+
+                    const rowPubRegStartMonth = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editpubregstartmonth')
+                                .setLabel('Input new start month')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
+
+                    const rowPubRegStartDay = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('editpubregstartday')
+                                .setLabel('Input new start day')
+                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
                 const testEvent = new ArtEvent('dsse2022', 'Destiny Secret Santa Event 2022');
                 interaction.client._tempEvents.set(testEvent.id, testEvent);
@@ -147,6 +236,16 @@ module.exports = {
                             if (btnConfirmCreate.customId === 'btnconfirm') {
                                 // START EVENT CREATION
                                 btnConfirmCreate.update({ content: 'Begin Event creation.', components: [] });
+
+                                // First should be "Type" from SelectMenu with 3 Type options.
+                                // Then id and name which are both in a modal
+                                // Then pick a role (previously created) from a roleSelect SelectMenu TODO: getter setter that checks instance of role (if it is a class)
+                                // Then insert a Due Date... TODO: getter setter that also checks if instance of Date
+                                // For later: date is set by data from user input. There will be 4 but all are handled in event class setter.
+                                // If Date checks out with the Util method, then create date object as below.
+                                const date = new Date();
+                                // ArtEvent instance.registrationDate = date;
+                                // if (ArtEvent.registrationDate) returns true, continue to next question...
                             }
                             else if (btnConfirmCreate.customId === 'btnreject') {
                                 // BOOT USER
@@ -166,7 +265,7 @@ module.exports = {
 
                     else if (mainCommand.customId === 'btnedit') {
                         const pastEvents = ['dotl2022', 'dsse2022', 'crimsondays2023'];
-                        await mainCommand.showModal(modal);
+                        await mainCommand.showModal(modalId);
                         await mainCommand.editReply({ content: 'Type in the name of the event you want to edit. The most recent events include: ' + arrayToString(pastEvents), components: [] });
 
                         const modalSubmitEdit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('modalSubmitEdit', err); });
@@ -178,7 +277,7 @@ module.exports = {
                             // QUERY DB FOR EVENT WITH ID FROM INPUT
                             const artEvent = interaction.client._tempEvents.get(eventName);
                             if (artEvent) {
-                                await modalSubmitEdit.update({ content: 'What do you want to edit? -TODO', components: [rowEdit] });
+                                await modalSubmitEdit.update({ content: 'What do you want to edit? -TODO', components: [rowEditSelect] });
 
                                 const stringSelectEdit = await interaction.channel.awaitMessageComponent({ time: 30000, filter, ComponentType: ComponentType.StringSelect });
 
@@ -189,6 +288,11 @@ module.exports = {
 
                                     if (changeValues) {
                                         await stringSelectEdit.update({ content: `You selected ${inlineCode(changeValues)}`, components: [] });
+
+                                        // For later: date is set by data from user input. There will be 4.
+                                        const date = new Date();
+                                        const hour = isDaylightSavings() ? 10 : 9;
+                                        date.setHours(hour);
                                     }
                                     else {
                                         logger.info(`${interaction.user.username} NO SELECT stringSelectEdit!`);
@@ -216,7 +320,7 @@ module.exports = {
                         const pastEvents = ['dotl2022', 'dsse2022', 'crimsondays2023'];
                         const adminPriviledge = await priviledgeCheck(interaction, ['Admin']);
                         if (adminPriviledge.has(interaction.user.id)) {
-                            await mainCommand.showModal(modal);
+                            await mainCommand.showModal(modalId);
                             await mainCommand.editReply({ content: 'Type in the name of the event you want to edit. The most recent events include: ' + arrayToString(pastEvents), components: [] });
 
                             const modalSubmitDelete = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('modalSubmitDelete', err); });
