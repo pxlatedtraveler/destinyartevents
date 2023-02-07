@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, inlineCode } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, RoleSelectMenuBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, inlineCode } = require('discord.js');
 const { priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown } = require('../Utils');
 const logger = require('../../util/logger.js');
 
@@ -131,6 +131,31 @@ module.exports = {
                         );
 
                     // Event Edit and Creation components
+                    // Type
+
+                    const rowSelectType = new ActionRowBuilder()
+                        .addComponents(
+                            new StringSelectMenuBuilder()
+                                .setCustomId('selecttype')
+                                .setPlaceholder('Select the event type')
+                                .setMaxValues(1)
+                                .addOptions([
+                                    { label: 'Exchange', description: 'Exchange events are discord-only, and allow exchange or solo participation.', value: 'exchange' },
+                                    { label: 'Open', description: 'Open events are open to all, and have little moderation.', value: 'open' }
+                                ])
+                        );
+
+                    // Role selet
+
+                    const rowSelectRole = new ActionRowBuilder()
+                        .addComponents(
+                            new RoleSelectMenuBuilder()
+                                .setCustomId('selectrole')
+                                .setPlaceholder('Select event role')
+                                .setMaxValues(1)
+                                .setMinValues(1)
+                        );
+
                     // Name types
 
                     const modalNames = new ModalBuilder()
@@ -173,33 +198,33 @@ module.exports = {
 
                     // Discord Registration Date
 
-                    const rowPreRegStartMonth = new ActionRowBuilder()
+                    const rowdiscordStartMonth = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('editpreregstartmonth')
+                                .setCustomId('discordstartmonth')
                                 .setLabel('Input new start month (numerical month)')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
-                    const rowPreRegStartDay = new ActionRowBuilder()
+                    const rowdiscordStartDay = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('editpreregstartday')
+                                .setCustomId('discordstartday')
                                 .setLabel('Input new start day')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
                     // Public Registration Date
 
-                    const rowPubRegStartMonth = new ActionRowBuilder()
+                    const rowpublicStartMonth = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('editpubregstartmonth')
+                                .setCustomId('publicstartmonth')
                                 .setLabel('Input new start month')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
-                    const rowPubRegStartDay = new ActionRowBuilder()
+                    const rowpublicStartDay = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('editpubregstartday')
+                                .setCustomId('publicstartday')
                                 .setLabel('Input new start day')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
