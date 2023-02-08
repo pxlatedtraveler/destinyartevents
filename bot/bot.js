@@ -111,3 +111,8 @@ const fakeDiscordObj = { id: '001', username: 'pxl', discriminator: '#0007', tag
 const firstMember = new member(fakeDiscordObj);
 
 logger.info(firstMember);
+
+/* const blockedUsers = ['id1', 'id2'];
+client.on(Events.InteractionCreate, interaction => {
+	if (blockedUsers.includes(interaction.user.id)) return;
+}); */

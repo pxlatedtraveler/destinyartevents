@@ -1,5 +1,5 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, RoleSelectMenuBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, inlineCode } = require('discord.js');
-const { priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown } = require('../Utils');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, RoleSelectMenuBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate } = require('../Utils');
 const logger = require('../../util/logger.js');
 
 const permittedRoles = ['Admin', 'Mod'];
@@ -38,6 +38,7 @@ class ArtEvent {
 
     get registrationtDate() { return this._discord_startDate; }
     set registrationtDate(val) {
+
         if (val instanceof Date) {
             const day = 8.64e+7;
             const hour = isDaylightSavings(val) ? 10 : 9;
@@ -45,7 +46,7 @@ class ArtEvent {
             this._discord_startDate.setHours(hour, 0, 0, 0);
             this._discord_endDate = new Date(this._discord_startDate.getTime() + (day * 5));
             this._public_startDate = new Date(this._discord_endDate.getTime());
-            this._public_endDate = new Date(this._public_endDate.getTime() + (day * 2));
+            this._public_endDate = new Date(this._public_startDate.getTime() + (day * 2));
             this._discord_endDate.setHours(hour - 1, 59, 59);
             this._public_endDate.setHours(hour - 1, 59, 59);
         }
@@ -119,14 +120,13 @@ module.exports = {
                                 .setCustomId('selectedit')
                                 .setPlaceholder('Select all you want to change')
                                 // .setMinValues(5)
-                                .setMaxValues(6)
+                                .setMaxValues(5)
                                 .addOptions([
                                     { label: 'Id', description: 'Change event Id', value: 'id' },
                                     { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
                                     { label: 'Role', description: 'Change event\'s role', value: 'role' },
                                     { label: 'Due date', description: 'Change event\'s due date', value: 'date' },
-                                    { label: 'Discord signup dates', description: 'Change Discord signup date range', value: 'discordsignup' },
-                                    { label: 'Public signup dates', description: 'Change Public signup date range', value: 'publicsignup' },
+                                    { label: 'Discord signup dates', description: 'Change Discord signup date', value: 'discordsignup' }
                                 ])
                         );
 
@@ -178,55 +178,48 @@ module.exports = {
 
                     // Date types
 
-                    const modalDates = ModalBuilder()
+                    const modalDates = new ModalBuilder()
                         .setCustomId('modaleditdates')
                         .setTitle('Set new values');
 
                     const rowDueDateMonth = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('editduedatemonth')
+                                .setCustomId('duedatemonth')
                                 .setLabel('Input new event due month (numerical month)')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
                     const rowDueDateDay = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('editduedateday')
+                                .setCustomId('duedateday')
                                 .setLabel('Input new event due day')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
                     // Discord Registration Date
 
-                    const rowdiscordStartMonth = new ActionRowBuilder()
+                    const rowSingupStartYear = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('discordstartmonth')
+                                .setCustomId('signupstartyear')
+                                .setLabel('Input new start year (leave blank if current)')
+                                .setStyle(TextInputStyle.Short).setMinLength(4).setMaxLength(4).setRequired(false));
+
+                    const rowSignupStartMonth = new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('signupstartmonth')
                                 .setLabel('Input new start month (numerical month)')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
-                    const rowdiscordStartDay = new ActionRowBuilder()
+                    const rowSignupStartDay = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('discordstartday')
+                                .setCustomId('signupstartday')
                                 .setLabel('Input new start day')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
                     // Public Registration Date
-
-                    const rowpublicStartMonth = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('publicstartmonth')
-                                .setLabel('Input new start month')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
-
-                    const rowpublicStartDay = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('publicstartday')
-                                .setLabel('Input new start day')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
                 const testEvent = new ArtEvent('dsse2022', 'Destiny Secret Santa Event 2022');
                 interaction.client._tempEvents.set(testEvent.id, testEvent);
@@ -268,7 +261,7 @@ module.exports = {
                                 // Then insert a Due Date... TODO: getter setter that also checks if instance of Date
                                 // For later: date is set by data from user input. There will be 4 but all are handled in event class setter.
                                 // If Date checks out with the Util method, then create date object as below.
-                                const date = new Date();
+                                // const date = new Date();
                                 // ArtEvent instance.registrationDate = date;
                                 // if (ArtEvent.registrationDate) returns true, continue to next question...
                             }
@@ -309,15 +302,89 @@ module.exports = {
                                 if (stringSelectEdit) {
                                     refreshTimeout(interaction, timeout);
                                     logger.info(interaction.user.username + 'COLLECTED stringSelectEdit');
+
                                     const changeValues = stringSelectEdit.values;
 
                                     if (changeValues) {
-                                        await stringSelectEdit.update({ content: `You selected ${inlineCode(changeValues)}`, components: [] });
+                                        let sendNameModal = false;
+                                        let sendRoleSelect = false;
+                                        let sendDateModal = false;
+                                        const editCommands = [];
 
-                                        // For later: date is set by data from user input. There will be 4.
-                                        const date = new Date();
-                                        const hour = isDaylightSavings() ? 10 : 9;
-                                        date.setHours(hour);
+                                        if (changeValues.includes('id')) {
+                                            sendNameModal = true;
+                                            modalNames.addComponents(rowEventId);
+                                        }
+                                        if (changeValues.includes('name')) {
+                                            sendNameModal = true;
+                                            modalNames.addComponents(rowEventName);
+                                        }
+                                        if (changeValues.includes('role')) {
+                                            sendRoleSelect = true;
+                                        }
+                                        if (changeValues.includes('date')) {
+                                            sendDateModal = true;
+                                            modalDates.addComponents(rowDueDateMonth, rowDueDateDay);
+                                        }
+                                        if (changeValues.includes('discordsignup')) {
+                                            sendDateModal = true;
+                                            modalDates.addComponents(rowSingupStartYear, rowSignupStartMonth, rowSignupStartDay);
+                                        }
+
+                                        if (sendNameModal) {
+                                            await stringSelectEdit.showModal(modalNames);
+                                            await stringSelectEdit.editReply({ content: 'Update', components: [] });
+                                            const nameModalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('nameModalSubmit', err); });
+                                            if (nameModalSubmit) {
+                                                editCommands.push(nameModalSubmit);
+                                                // Validate user input. Store if valid, boot if false (the else below)
+                                            }
+                                            else {
+                                                nameModalSubmit.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                            }
+                                        }
+                                        if (sendRoleSelect) {
+                                            const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
+                                            await lastInt.update({ content: 'Select new role to use', components: [rowSelectRole] });
+                                            const roleCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.RoleSelect }).catch(err => { logger.error('roleCommand', err); });
+                                            if (roleCommand) {
+                                                editCommands.push(roleCommand);
+                                                // Store value, boot if false (the else below)
+                                            }
+                                            else {
+                                                lastInt.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                            }
+                                        }
+                                        if (sendDateModal) {
+                                            const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
+                                            await lastInt.showModal(modalDates);
+                                            await lastInt.editReply({ content: 'Update', components: [rowSelectRole] });
+                                            const dateModalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('dateModalSubmit', err); });
+                                            if (dateModalSubmit) {
+                                                editCommands.push(dateModalSubmit);
+
+                                                // QUERY
+                                                // if (component.rowSignupStartYear)
+
+                                                const registrationData = {};
+                                                registrationData.year = dateModalSubmit.fields.getTextInputValue('signupstartyear');
+                                                registrationData.month = dateModalSubmit.fields.getTextInputValue('signupstartmonth');
+                                                registrationData.day = dateModalSubmit.fields.getTextInputValue('signupstartday');
+
+                                                const validDate = validateDate(registrationData.month, registrationData.day);
+                                                if (validDate.valid) {
+                                                    if (!registrationData.year) registrationData.year = new Date().getFullYear;
+                                                    artEvent.registrationtDate = new Date(registrationData.year, validDate.m, validDate.d);
+                                                }
+
+                                            }
+                                            else {
+                                                lastInt.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                            }
+                                        }
+
+                                        const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
+                                        await lastInt.update({ content: 'That was a lot... TODO, grab ALL replies using array.', components: [] });
                                     }
                                     else {
                                         logger.info(`${interaction.user.username} NO SELECT stringSelectEdit!`);
