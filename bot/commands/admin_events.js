@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, RoleSelectMenuBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, Role, RoleSelectMenuBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate } = require('../Utils');
 const logger = require('../../util/logger.js');
 
@@ -16,8 +16,8 @@ class ArtEvent {
         this.type = type;
         this._id = id;
         this._name = name;
-        this._role = role;
         this._dueDate;
+        this._role = role;
         this._discord_startDate;
         this._discord_endDate;
         this._public_startDate;
@@ -25,19 +25,58 @@ class ArtEvent {
     }
 
     get type() { return this._type; }
-    set type(val) { EventType.has(val) ? this._type = val : logger.error('ARTEVENT: type SET val not EventType'); }
+    set type(val) {
+        if (EventType.has(val)) {
+            this._type = val;
+        }
+        else {
+            this._type = EventType.get('LIMITED');
+            logger.warn('ARTEVENT: type SET val not EventType or NULL. Setting to "LIMITED"');
+        }
+    }
 
     get id() { return this._id; }
     set id(val) { typeof val === 'string' ? this._id = val : logger.error('ARTEVENT: id SET val not String'); }
 
-    get name() { return this.name; }
+    get name() { return this._name; }
     set name(val) { typeof val === 'string' ? this._name = val : logger.error('ARTEVENT: name SET val not String'); }
 
-    // getset role
-    // getset dueDate
+    get dueDate() { return this._duedate; }
+    set dueDate(val) {
+        if (val instanceof Date) {
+            if (this.signupDate) {
+                if (val > this.signupDate) {
+                    const hour = isDaylightSavings(val) ? 10 : 9;
+                    this._dueDate = val;
+                    this._dueDate.setHours(hour, 0, 0, 0);
+                    console.log('DATE DUE SET: ', this._dueDate.toString());
+                }
+                else {
+                    logger.error('ARTEVENT: dueDate SET val should be greated than signupDate');
+                }
+            }
+            else {
+                logger.error('ARTEVENT: singupDate should be created before dueDate');
+            }
+        }
+        else {
+            logger.error('ARTEVENT: dueDate SET val not instanceof Date');
+        }
+    }
 
-    get registrationtDate() { return this._discord_startDate; }
-    set registrationtDate(val) {
+    get role() { return this._role; }
+    set role(val) {
+        if (val instanceof Role) {
+            this._role = val;
+            console.log('ROLE SET: ', this._role);
+        }
+        else {
+            logger.error('ARTEVENT: role SET val not instanceof Role');
+        }
+    }
+
+    get signupDate() { return this._discord_startDate; }
+    set signupDate(val) {
 
         if (val instanceof Date) {
             const day = 8.64e+7;
@@ -49,6 +88,13 @@ class ArtEvent {
             this._public_endDate = new Date(this._public_startDate.getTime() + (day * 2));
             this._discord_endDate.setHours(hour - 1, 59, 59);
             this._public_endDate.setHours(hour - 1, 59, 59);
+            console.log('DATE DISCORD START SET: ', this._discord_startDate.toString());
+            console.log('DATE DISCORD END SET: ', this._discord_endDate.toString());
+            console.log('DATE PUBLIC START SET: ', this._public_startDate.toString());
+            console.log('DATE PUBLIC END SET: ', this._public_endDate.toString());
+        }
+        else {
+            logger.error('ARTEVENT: signupDate SET val not instanceof Date');
         }
     }
 }
@@ -125,8 +171,8 @@ module.exports = {
                                     { label: 'Id', description: 'Change event Id', value: 'id' },
                                     { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
                                     { label: 'Role', description: 'Change event\'s role', value: 'role' },
-                                    { label: 'Due date', description: 'Change event\'s due date', value: 'date' },
-                                    { label: 'Discord signup dates', description: 'Change Discord signup date', value: 'discordsignup' }
+                                    { label: 'Discord signup dates', description: 'Change Discord signup date', value: 'discordsignup' },
+                                    { label: 'Due date', description: 'Change event\'s due date', value: 'date' }
                                 ])
                         );
 
@@ -198,10 +244,10 @@ module.exports = {
 
                     // Discord Registration Date
 
-                    const rowSingupStartYear = new ActionRowBuilder()
+                    const rowSignupYear = new ActionRowBuilder()
                         .addComponents(
                             new TextInputBuilder()
-                                .setCustomId('signupstartyear')
+                                .setCustomId('startyear')
                                 .setLabel('Input new start year (leave blank if current)')
                                 .setStyle(TextInputStyle.Short).setMinLength(4).setMaxLength(4).setRequired(false));
 
@@ -219,9 +265,8 @@ module.exports = {
                                 .setLabel('Input new start day')
                                 .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
 
-                    // Public Registration Date
 
-                const testEvent = new ArtEvent('dsse2022', 'Destiny Secret Santa Event 2022');
+                const testEvent = new ArtEvent('dsse2022', 'Destiny Secret Santa Event 2022', null);
                 interaction.client._tempEvents.set(testEvent.id, testEvent);
 
                 const filter = intr => intr.user.id === interaction.user.id;
@@ -306,32 +351,41 @@ module.exports = {
                                     const changeValues = stringSelectEdit.values;
 
                                     if (changeValues) {
-                                        let sendNameModal = false;
+                                        let sendNameModal_id = false;
+                                        let sendNameModal_name = false;
                                         let sendRoleSelect = false;
-                                        let sendDateModal = false;
+                                        let sendDateModal_signup = false;
+                                        let sendDateModal_due = false;
                                         const editCommands = [];
 
+                                        const dateData = { errors: [] };
+
                                         if (changeValues.includes('id')) {
-                                            sendNameModal = true;
+                                            sendNameModal_id = true;
                                             modalNames.addComponents(rowEventId);
+                                            logger.warn('using id');
                                         }
                                         if (changeValues.includes('name')) {
-                                            sendNameModal = true;
+                                            sendNameModal_name = true;
                                             modalNames.addComponents(rowEventName);
+                                            logger.warn('using name');
                                         }
                                         if (changeValues.includes('role')) {
                                             sendRoleSelect = true;
+                                            logger.warn('using role');
                                         }
                                         if (changeValues.includes('date')) {
-                                            sendDateModal = true;
+                                            sendDateModal_due = true;
                                             modalDates.addComponents(rowDueDateMonth, rowDueDateDay);
+                                            logger.warn('using duedate');
                                         }
                                         if (changeValues.includes('discordsignup')) {
-                                            sendDateModal = true;
-                                            modalDates.addComponents(rowSingupStartYear, rowSignupStartMonth, rowSignupStartDay);
+                                            sendDateModal_signup = true;
+                                            modalDates.addComponents(rowSignupYear, rowSignupStartMonth, rowSignupStartDay);
+                                            logger.warn('using regi date');
                                         }
 
-                                        if (sendNameModal) {
+                                        if (sendNameModal_id || sendNameModal_name) {
                                             await stringSelectEdit.showModal(modalNames);
                                             await stringSelectEdit.editReply({ content: 'Update', components: [] });
                                             const nameModalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('nameModalSubmit', err); });
@@ -349,13 +403,13 @@ module.exports = {
                                             const roleCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.RoleSelect }).catch(err => { logger.error('roleCommand', err); });
                                             if (roleCommand) {
                                                 editCommands.push(roleCommand);
-                                                // Store value, boot if false (the else below)
+                                                artEvent.role = roleCommand.roles.first();
                                             }
                                             else {
                                                 lastInt.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
                                             }
                                         }
-                                        if (sendDateModal) {
+                                        if (sendDateModal_due || sendDateModal_signup) {
                                             const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
                                             await lastInt.showModal(modalDates);
                                             await lastInt.editReply({ content: 'Update', components: [rowSelectRole] });
@@ -363,26 +417,82 @@ module.exports = {
                                             if (dateModalSubmit) {
                                                 editCommands.push(dateModalSubmit);
 
-                                                // QUERY
-                                                // if (component.rowSignupStartYear)
-
-                                                const registrationData = {};
-                                                registrationData.year = dateModalSubmit.fields.getTextInputValue('signupstartyear');
-                                                registrationData.month = dateModalSubmit.fields.getTextInputValue('signupstartmonth');
-                                                registrationData.day = dateModalSubmit.fields.getTextInputValue('signupstartday');
-
-                                                const validDate = validateDate(registrationData.month, registrationData.day);
-                                                if (validDate.valid) {
-                                                    if (!registrationData.year) registrationData.year = new Date().getFullYear;
-                                                    artEvent.registrationtDate = new Date(registrationData.year, validDate.m, validDate.d);
+                                                dateData.year = dateModalSubmit.fields.getTextInputValue('startyear');
+                                                const currentYear = new Date().getFullYear();
+                                                if (dateData.year < currentYear) {
+                                                    console.log('YEAR VAL NOT VALID. Swapping to CURRENT');
+                                                    dateData.errors.push(`Year ${dateData.year} was invalid or empty; changed to ${currentYear}`);
+                                                    dateData.year = currentYear;
+                                                }
+                                                else {
+                                                    console.log('YEAR IS A VALID YEAR VALUE');
                                                 }
 
+                                                if (sendDateModal_signup) {
+                                                    dateData.signupMonth = dateModalSubmit.fields.getTextInputValue('signupstartmonth');
+                                                    dateData.signupDay = dateModalSubmit.fields.getTextInputValue('signupstartday');
+                                                    const validDate = validateDate(dateData.signupMonth, dateData.signupDay);
+                                                    if (validDate.valid) {
+                                                        dateData.signupDate = new Date(dateData.year, validDate.m, validDate.d);
+                                                        // SUCCESS SIGNUPDATE
+                                                        artEvent.signupDate = dateData.signupDate;
+                                                    }
+                                                    else {
+                                                        if (validDate.error.code === 0) {
+                                                            dateData.errors.push(`Registration Month ${dateData.signupMonth} is not valid.`);
+                                                        }
+                                                        else if (validDate.error.code === 1) {
+                                                            dateData.errors.push(`Registration Day ${dateData.signupDay} is not valid for month ${dateData.dueMonth}`);
+                                                        }
+                                                    }
+                                                }
+
+                                                if (sendDateModal_due) {
+                                                    dateData.dueMonth = dateModalSubmit.fields.getTextInputValue('duedatemonth');
+                                                    dateData.dueDay = dateModalSubmit.fields.getTextInputValue('duedateday');
+                                                    const validDate = validateDate(dateData.dueMonth, dateData.dueDay);
+                                                    if (validDate.valid) {
+                                                            // REWORK THIS CODE... SPLIT DATE MODALS, CREATE YEAR INPUT UNIQUE TO DUE DATE...or see if the set of 3 actionrows can be reused.
+/*                                                         if (dateData.signupDate) {
+                                                            dateData.dueDate = new Date(dateData.signupDate.getFullYear(), validDate.m, validDate.d);
+                                                            if (dateData.dueDate > dateData.signupDate) {
+                                                                // SUCCESS DUEDATE
+                                                                artEvent.dueDate = dateData.dueDate;
+                                                            }
+                                                            else {
+                                                                dateData.errors.push(`Due Date ${dateData.dueDate} should be later than Signup Start Date ${dateData.signupDate}`);
+                                                            }
+                                                        }
+                                                        else {
+                                                            if (artEvent.signupDate) {
+                                                                if (dateData.dueDate > artEvent.signupDate) {
+                                                                // SUCCESS DUEDATE
+                                                                artEvent.dueDate = dateData.dueDate;
+                                                                }
+                                                                else {
+                                                                    dateData.errors.push(`Due Date ${dateData.dueDate} should be later than Signup Start Date ${dateData.signupDate}`);
+                                                                }
+                                                            }
+                                                            else {
+                                                                dateData.errors.push(`Set Signup Start Date before Due Date`);
+                                                            }
+                                                        } */
+                                                    }
+                                                    else {
+                                                        if (validDate.error.code === 0) {
+                                                            dateData.errors.push(`Due Month ${dateData.dueMonth} is not valid.`);
+                                                        }
+                                                        else if (validDate.error.code === 1) {
+                                                            dateData.errors.push(`Due Day ${dateData.dueDay} is not valid for month ${dateData.dueMonth}`);
+                                                        }
+                                                    }
+                                                }
                                             }
                                             else {
                                                 lastInt.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
                                             }
                                         }
-
+                                        // QUERY ALL HERE by grabbing ARTEVENT from above
                                         const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
                                         await lastInt.update({ content: 'That was a lot... TODO, grab ALL replies using array.', components: [] });
                                     }
