@@ -40,6 +40,35 @@ function arrayToString(array) {
     return string;
 }
 
+/**
+ * @param {MessageComponentInteraction} msg The interaction returned after user interacts
+ * @returns {[ActionRow]} an array of ActionRows or empty array
+ */
+ function getMessageComponents(msg) {
+    return msg.message.components;
+}
+
+/**
+ * @param {MessageComponentInteraction} msg The interaction returned after user interacts
+ * @returns {Component} or undefined if no matching id found
+ */
+function getMessageComponentById(msg, id) {
+    const rows = getMessageComponents(msg);
+    const rowWithId = rows.find(e => e.customId === id);
+    if (rowWithId) return rowWithId;
+    for (let i = 0; i < rows.length; i++) {
+        const rowComponents = rows[i].components;
+        const childWithId = rowComponents.find(e => e.customId === id);
+        if (childWithId) return childWithId;
+    }
+    return undefined;
+}
+
+function getMessageFirstComponent(msg) {
+    const rows = getMessageComponents(msg);
+    return rows[0].components[0];
+}
+
 function getTimeLeft(timeout, startTime) {
     return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
 }
@@ -88,4 +117,4 @@ function validateDate(month, day) {
 }
 
 
-module.exports = { Months, priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate };
+module.exports = { Months, priviledgeCheck, arrayToString, getMessageComponents, getMessageComponentById, getMessageFirstComponent, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate };
