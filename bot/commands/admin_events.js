@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, Role, RoleSelectMenuBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, Collection, ComponentType, ModalBuilder, Role, RoleSelectMenuBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle, EmbedBuilder } = require('discord.js');
 const { priviledgeCheck, arrayToString, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate } = require('../Utils');
 const logger = require('../../util/logger.js');
 
@@ -7,13 +7,14 @@ const permittedRoles = ['Admin', 'Mod'];
 const cooldownTimer = 10000;
 
 const EventType = new Collection()
-    .set('EXCHANGE', { type: 'exchange', value: 0 })
-    .set('OPEN', { type: 'open', value: 1 })
-    .set('LIMITED', { type: 'limited', value: 2 });
+    .set('OPEN', { type: 'open', value: 0 })
+    .set('CLOSED', { type: 'closed', value: 1 })
+    .set('PUBLIC', { type: 'public', value: 2 })
+    .set('LIMITED', { type: 'limited', value: 3 });
 
 class ArtEvent {
-    constructor(id, name, role, type) {
-        this.type = type;
+    constructor(type, id, name, role) {
+        this._type = type;
         this._id = id;
         this._name = name;
         this._dueDate;
@@ -26,75 +27,112 @@ class ArtEvent {
 
     get type() { return this._type; }
     set type(val) {
+
         if (EventType.has(val)) {
             this._type = val;
+            logger.info('ARTEVENT: type SET to ' + this._type);
         }
         else {
             this._type = EventType.get('LIMITED');
-            logger.warn('ARTEVENT: type SET val not EventType or NULL. Setting to "LIMITED"');
+            logger.warn('ARTEVENT: type SET val ' + val + ' not EventType or NULL. Setting to "LIMITED"');
         }
     }
 
     get id() { return this._id; }
-    set id(val) { typeof val === 'string' ? this._id = val : logger.error('ARTEVENT: id SET val not String'); }
-
-    get name() { return this._name; }
-    set name(val) { typeof val === 'string' ? this._name = val : logger.error('ARTEVENT: name SET val not String'); }
-
-    get dueDate() { return this._duedate; }
-    set dueDate(val) {
-        if (val instanceof Date) {
-            if (this.signupDate) {
-                if (val > this.signupDate) {
-                    const hour = isDaylightSavings(val) ? 10 : 9;
-                    this._dueDate = val;
-                    this._dueDate.setHours(hour, 0, 0, 0);
-                    console.log('DATE DUE SET: ', this._dueDate.toString());
-                }
-                else {
-                    logger.error('ARTEVENT: dueDate SET val should be greated than signupDate');
-                }
-            }
-            else {
-                logger.error('ARTEVENT: singupDate should be created before dueDate');
-            }
+    set id(val) {
+        if (typeof val === 'string') {
+            this._id = val;
+            logger.info('ARTEVENT: id SET to ' + this._id);
         }
         else {
-            logger.error('ARTEVENT: dueDate SET val not instanceof Date');
+            logger.error('ARTEVENT: id SET val not String');
+        }
+    }
+
+    get name() { return this._name; }
+    set name(val) {
+        if (typeof val === 'string') {
+            this._name = val;
+            logger.info('ARTEVENT: name SET to ' + this._name);
+        }
+        else {
+            logger.error('ARTEVENT: name SET val not String');
         }
     }
 
     get role() { return this._role; }
     set role(val) {
-        if (val instanceof Role) {
-            this._role = val;
-            console.log('ROLE SET: ', this._role);
+
+        if (this.type === EventType.get('OPEN') || this.type === EventType.get('CLOSED') || this.type === EventType.get('PUBLIC')) {
+            if (val instanceof Role) {
+                this._role = val;
+                logger.info('ARTEVENT role SET to ' + this._role);
+            }
+            else {
+                logger.error('ARTEVENT: role SET val not instanceof Role');
+            }
         }
         else {
-            logger.error('ARTEVENT: role SET val not instanceof Role');
+            logger.warn('ARTEVENT: Set Event type to "OPEN", "CLOSED" or "PUBLIC" to set a role.');
         }
     }
 
     get signupDate() { return this._discord_startDate; }
     set signupDate(val) {
 
-        if (val instanceof Date) {
-            const day = 8.64e+7;
-            const hour = isDaylightSavings(val) ? 10 : 9;
-            this._discord_startDate = val;
-            this._discord_startDate.setHours(hour, 0, 0, 0);
-            this._discord_endDate = new Date(this._discord_startDate.getTime() + (day * 5));
-            this._public_startDate = new Date(this._discord_endDate.getTime());
-            this._public_endDate = new Date(this._public_startDate.getTime() + (day * 2));
-            this._discord_endDate.setHours(hour - 1, 59, 59);
-            this._public_endDate.setHours(hour - 1, 59, 59);
-            console.log('DATE DISCORD START SET: ', this._discord_startDate.toString());
-            console.log('DATE DISCORD END SET: ', this._discord_endDate.toString());
-            console.log('DATE PUBLIC START SET: ', this._public_startDate.toString());
-            console.log('DATE PUBLIC END SET: ', this._public_endDate.toString());
+        if (this.type === EventType.get('OPEN') || this.type === EventType.get('CLOSED')) {
+            if (val instanceof Date) {
+                const day = 8.64e+7;
+                const hour = isDaylightSavings(val) ? 10 : 9;
+                this._discord_startDate = val;
+                this._discord_startDate.setHours(hour, 0, 0, 0);
+                this._discord_endDate = new Date(this._discord_startDate.getTime() + (day * 5));
+                if (this.type === EventType.get('OPEN')) {
+                    this._public_startDate = new Date(this._discord_endDate.getTime());
+                    this._public_endDate = new Date(this._public_startDate.getTime() + (day * 2));
+                    this._public_endDate.setHours(hour - 1, 59, 59);
+                }
+                this._discord_endDate.setHours(hour - 1, 59, 59);
+
+                logger.info('DATE DISCORD START SET to ' + this._discord_startDate.toString());
+                logger.info('DATE DISCORD END SET to ' + this._discord_endDate.toString());
+                logger.info('DATE PUBLIC START SET to ' + this._public_startDate.toString());
+                logger.info('DATE PUBLIC END SET to ' + this._public_endDate.toString());
+            }
+            else {
+                logger.error('ARTEVENT: signupDate SET val not instanceof Date');
+            }
         }
         else {
-            logger.error('ARTEVENT: signupDate SET val not instanceof Date');
+            logger.warn('ARTEVENT: Set Event type to "OPEN" or "CLOSED" to set signup dates.');
+        }
+    }
+
+    get dueDate() { return this._dueDate; }
+    set dueDate(val) {
+        if (this.type === EventType.get('OPEN') || this.type === EventType.get('CLOSED') || this.type === EventType.get('PUBLIC')) {
+            if (val instanceof Date) {
+                if (this.signupDate) {
+                    if (val > this.signupDate) {
+                        const hour = isDaylightSavings(val) ? 10 : 9;
+                        this._dueDate = val;
+                        this._dueDate.setHours(hour, 0, 0, 0);
+                        logger.info('ARTEVENT dueDate SET to ' + this._dueDate.toString());
+                    }
+                    else {
+                        logger.error('ARTEVENT: dueDate SET val should be greated than signupDate');
+                    }
+                }
+                else {
+                    logger.error('ARTEVENT: singupDate should be created before dueDate');
+                }
+            }
+            else {
+                logger.error('ARTEVENT: dueDate SET val not instanceof Date');
+            }
+        }
+        else {
+            logger.warn('ARTEVENT: Set Event type to "OPEN", "CLOSED" or "PUBLIC" to set a due date.');
         }
     }
 }
@@ -125,6 +163,18 @@ module.exports = {
                         new ButtonBuilder()
                             .setCustomId('btnreject')
                             .setLabel('No')
+                            .setStyle(ButtonStyle.Danger)
+                    );
+
+                const rowNext = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId('btnnext')
+                            .setLabel('Next')
+                            .setStyle(ButtonStyle.Success),
+                        new ButtonBuilder()
+                            .setCustomId('btncancel')
+                            .setLabel('Cancel')
                             .setStyle(ButtonStyle.Danger)
                     );
 
@@ -160,113 +210,101 @@ module.exports = {
                             .setStyle(ButtonStyle.Danger)
                     );
 
-                    const rowEditSelect = new ActionRowBuilder()
-                        .addComponents(
-                            new StringSelectMenuBuilder()
-                                .setCustomId('selectedit')
-                                .setPlaceholder('Select all you want to change')
-                                // .setMinValues(5)
-                                .setMaxValues(5)
-                                .addOptions([
-                                    { label: 'Id', description: 'Change event Id', value: 'id' },
-                                    { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
-                                    { label: 'Role', description: 'Change event\'s role', value: 'role' },
-                                    { label: 'Discord signup dates', description: 'Change Discord signup date', value: 'discordsignup' },
-                                    { label: 'Due date', description: 'Change event\'s due date', value: 'date' }
-                                ])
-                        );
+                const editOptions = {
+                    type: { label: 'Type', description: 'Change event Type', value: 'type' },
+                    id: { label: 'Id', description: 'Change event Id', value: 'id' },
+                    name: { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
+                    role: { label: 'Role', description: 'Change event\'s role', value: 'role' },
+                    signupDate: { label: 'Signup dates', description: 'Change Discord signup date', value: 'discordsignup' },
+                    dueDate: { label: 'Due date', description: 'Change event\'s due date', value: 'date' }
+                };
 
-                    // Event Edit and Creation components
-                    // Type
+                const rowEditSelect = new ActionRowBuilder()
+                    .addComponents(
+                        new StringSelectMenuBuilder()
+                            .setCustomId('selectedit')
+                            .setPlaceholder('Select all you want to change')
+                    );
 
-                    const rowSelectType = new ActionRowBuilder()
-                        .addComponents(
-                            new StringSelectMenuBuilder()
-                                .setCustomId('selecttype')
-                                .setPlaceholder('Select the event type')
-                                .setMaxValues(1)
-                                .addOptions([
-                                    { label: 'Exchange', description: 'Exchange events are discord-only, and allow exchange or solo participation.', value: 'exchange' },
-                                    { label: 'Open', description: 'Open events are open to all, and have little moderation.', value: 'open' }
-                                ])
-                        );
+                // Event Edit and Creation components
+                // Type select
 
-                    // Role selet
+                const embedConfirm = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('Review Changes')
+                    .setDescription('Valid changes and errors');
 
-                    const rowSelectRole = new ActionRowBuilder()
-                        .addComponents(
-                            new RoleSelectMenuBuilder()
-                                .setCustomId('selectrole')
-                                .setPlaceholder('Select event role')
-                                .setMaxValues(1)
-                                .setMinValues(1)
-                        );
+                const rowSelectType = new ActionRowBuilder()
+                    .addComponents(
+                        new StringSelectMenuBuilder()
+                            .setCustomId('selecttype')
+                            .setPlaceholder('Select the event type')
+                            .setMaxValues(1)
+                            .addOptions([
+                                { label: 'Open', description: 'Open events are discord-only, and allow new participants.', value: 'OPEN' },
+                                { label: 'Closed', description: 'Closed events are discord-only, with no new participants.', value: 'CLOSED' },
+                                { label: 'Public', description: 'Public events welcome all, and have little moderation.', value: 'PUBLIC' }
+                            ])
+                    );
 
-                    // Name types
+                // Name types
 
-                    const modalNames = new ModalBuilder()
-                        .setCustomId('modaleditnames')
-                        .setTitle('Set new values');
+                const modalNames = new ModalBuilder()
+                    .setCustomId('modaleditnames')
+                    .setTitle('Set new values');
 
-                    const rowEventId = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('editid')
-                                .setLabel('Input new event id (ie: dsse2022)')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(20).setRequired(true));
+                const rowEventId = new ActionRowBuilder()
+                    .addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('editid')
+                            .setLabel('Input new event id (ie: dsse2022)')
+                            .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(20).setRequired(true));
 
-                    const rowEventName = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('editname')
-                                .setLabel('Input new event name (ie: Secret Santa)')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(35).setRequired(true));
+                const rowEventName = new ActionRowBuilder()
+                    .addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('editname')
+                            .setLabel('Input new event name (ie: Secret Santa)')
+                            .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(35).setRequired(true));
 
-                    // Date types
+                // Role select
 
-                    const modalDates = new ModalBuilder()
-                        .setCustomId('modaleditdates')
-                        .setTitle('Set new values');
+                const rowSelectRole = new ActionRowBuilder()
+                    .addComponents(
+                        new RoleSelectMenuBuilder()
+                            .setCustomId('selectrole')
+                            .setPlaceholder('Select event role')
+                            .setMaxValues(1)
+                            .setMinValues(1)
+                    );
 
-                    const rowDueDateMonth = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('duedatemonth')
-                                .setLabel('Input new event due month (numerical month)')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
+                // Date types
 
-                    const rowDueDateDay = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('duedateday')
-                                .setLabel('Input new event due day')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
+                const modalDates = new ModalBuilder()
+                    .setCustomId('modaleditdates')
+                    .setTitle('Set new values')
+                    .addComponents(
+                        new ActionRowBuilder()
+                            .addComponents(
+                                new TextInputBuilder()
+                                    .setCustomId('year')
+                                    .setLabel('Input new start year (leave blank if current)')
+                                    .setStyle(TextInputStyle.Short).setMinLength(4).setMaxLength(4).setRequired(false)),
+                        new ActionRowBuilder()
+                            .addComponents(
+                                new TextInputBuilder()
+                                    .setCustomId('month')
+                                    .setLabel('Input new start month (numerical month)')
+                                    .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true)),
+                        new ActionRowBuilder()
+                            .addComponents(
+                                new TextInputBuilder()
+                                    .setCustomId('signupstartday')
+                                    .setLabel('Input new start day')
+                                    .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true))
+                    );
 
-                    // Discord Registration Date
-
-                    const rowSignupYear = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('startyear')
-                                .setLabel('Input new start year (leave blank if current)')
-                                .setStyle(TextInputStyle.Short).setMinLength(4).setMaxLength(4).setRequired(false));
-
-                    const rowSignupStartMonth = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('signupstartmonth')
-                                .setLabel('Input new start month (numerical month)')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
-
-                    const rowSignupStartDay = new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('signupstartday')
-                                .setLabel('Input new start day')
-                                .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true));
-
-
-                const testEvent = new ArtEvent('dsse2022', 'Destiny Secret Santa Event 2022', null);
+                const testEvent = new ArtEvent(EventType.get('OPEN'), 'dsse2022', 'Destiny Secret Santa Event 2022', null);
                 interaction.client._tempEvents.set(testEvent.id, testEvent);
 
                 const filter = intr => intr.user.id === interaction.user.id;
@@ -340,6 +378,39 @@ module.exports = {
                             // QUERY DB FOR EVENT WITH ID FROM INPUT
                             const artEvent = interaction.client._tempEvents.get(eventName);
                             if (artEvent) {
+                                if (artEvent.type === EventType.get('OPEN') || artEvent.type === EventType.get('CLOSED')) {
+                                    rowEditSelect.components[0].setMaxValues(6);
+                                    rowEditSelect.components[0].addOptions([
+                                        editOptions.type,
+                                        editOptions.id,
+                                        editOptions.name,
+                                        editOptions.role,
+                                        editOptions.signupDate,
+                                        editOptions.dueDate
+                                    ]);
+                                }
+                                else if (artEvent.type === EventType.get('PUBLIC')) {
+                                    rowEditSelect.components[0].setMaxValues(5);
+                                    rowEditSelect.components[0].addOptions([
+                                        editOptions.type,
+                                        editOptions.id,
+                                        editOptions.name,
+                                        editOptions.role,
+                                        editOptions.dueDate
+                                    ]);
+                                }
+                                else if (artEvent.type === EventType.get('LIMITED')) {
+                                    rowEditSelect.components[0].setMaxValues(3);
+                                    rowEditSelect.components[0].addOptions([
+                                        editOptions.type,
+                                        editOptions.id,
+                                        editOptions.name
+                                    ]);
+                                }
+                                else if (!artEvent.type) {
+                                    artEvent.type = EventType.get('LIMITED');
+                                    logger.error('event has no type. Assigning LIMITED');
+                                }
                                 await modalSubmitEdit.update({ content: 'What do you want to edit? -TODO', components: [rowEditSelect] });
 
                                 const stringSelectEdit = await interaction.channel.awaitMessageComponent({ time: 30000, filter, ComponentType: ComponentType.StringSelect });
@@ -349,152 +420,297 @@ module.exports = {
                                     logger.info(interaction.user.username + 'COLLECTED stringSelectEdit');
 
                                     const changeValues = stringSelectEdit.values;
-
+                                    // Change condition to if (changeValues.length > 0)
                                     if (changeValues) {
+                                        let sendTypeSelect = false;
                                         let sendNameModal_id = false;
                                         let sendNameModal_name = false;
                                         let sendRoleSelect = false;
                                         let sendDateModal_signup = false;
                                         let sendDateModal_due = false;
                                         const editCommands = [];
+                                        const nextCommands = [];
+                                        let nextCounter = 0;
 
-                                        const dateData = { errors: [] };
+                                        const editData = { errors: [] };
 
+                                        if (changeValues.includes('type')) {
+                                            sendTypeSelect = true;
+                                            nextCounter++;
+                                            logger.warn('using type');
+                                        }
                                         if (changeValues.includes('id')) {
                                             sendNameModal_id = true;
                                             modalNames.addComponents(rowEventId);
+                                            nextCounter++;
                                             logger.warn('using id');
                                         }
                                         if (changeValues.includes('name')) {
                                             sendNameModal_name = true;
                                             modalNames.addComponents(rowEventName);
+                                            if (!sendNameModal_id) nextCounter++;
                                             logger.warn('using name');
                                         }
                                         if (changeValues.includes('role')) {
                                             sendRoleSelect = true;
+                                            nextCounter++;
                                             logger.warn('using role');
-                                        }
-                                        if (changeValues.includes('date')) {
-                                            sendDateModal_due = true;
-                                            modalDates.addComponents(rowDueDateMonth, rowDueDateDay);
-                                            logger.warn('using duedate');
                                         }
                                         if (changeValues.includes('discordsignup')) {
                                             sendDateModal_signup = true;
-                                            modalDates.addComponents(rowSignupYear, rowSignupStartMonth, rowSignupStartDay);
+                                            nextCounter++;
                                             logger.warn('using regi date');
+                                        }
+                                        if (changeValues.includes('date')) {
+                                            sendDateModal_due = true;
+                                            nextCounter++;
+                                            logger.warn('using duedate');
+                                        }
+
+                                        if (sendTypeSelect) {
+                                            await stringSelectEdit.update({ content: 'Select event Type', components: [rowSelectType] });
+                                            const typeCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.StringSelect }).catch(err => { logger.error('typeCommand', err); });
+                                            if (typeCommand) {
+                                                editCommands.push(typeCommand);
+                                                // SETTING EVENT TYPE
+                                                const typeToSet = typeCommand.values[0];
+                                                artEvent.type = typeToSet;
+
+
+                                                if (nextCounter > editCommands.length) {
+                                                    await typeCommand.update({ content: 'Click `Next` to continue, or `Cancel` to exit with no changes', components: [rowNext] });
+                                                    const nextCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('nextCommand', err); });
+                                                    if (nextCommand) {
+
+                                                        if (nextCommand.customId === 'btnnext') {
+                                                            nextCommands.push(nextCommand);
+                                                        }
+                                                        else if (nextCommand.customId === 'btncancel') {
+                                                            await nextCommand.update({ content: 'You selected `Cancel`. You can dismiss this message.', components: [] });
+                                                            return;
+                                                        }
+                                                    }
+                                                    else {
+                                                        typeCommand.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                                    }
+                                                }
+
+
+                                            }
+                                            else {
+                                                stringSelectEdit.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                            }
                                         }
 
                                         if (sendNameModal_id || sendNameModal_name) {
-                                            await stringSelectEdit.showModal(modalNames);
-                                            await stringSelectEdit.editReply({ content: 'Update', components: [] });
+                                            const lastInt = nextCommands[nextCommands.length - 1] ? nextCommands[nextCommands.length - 1] : stringSelectEdit;
+                                            await lastInt.showModal(modalNames);
+                                            await lastInt.editReply({ content: 'Update', components: [] });
                                             const nameModalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('nameModalSubmit', err); });
                                             if (nameModalSubmit) {
                                                 editCommands.push(nameModalSubmit);
-                                                // Validate user input. Store if valid, boot if false (the else below)
+
+                                                if (sendNameModal_id) {
+                                                    const idToSet = nameModalSubmit.fields.getTextInputValue('id');
+                                                    artEvent.id = idToSet;
+                                                }
+                                                if (sendNameModal_name) {
+                                                    const nameToSet = nameModalSubmit.fields.getTextInputValue('name');
+                                                    artEvent.name = nameToSet;
+                                                }
+
+                                                if (nextCounter > editCommands.length) {
+                                                    await nameModalSubmit.update({ content: 'Click `Next` to continue, or `Cancel` to exit with no changes', components: [rowNext] });
+                                                    const nextCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('nextCommand', err); });
+                                                    if (nextCommand) {
+
+                                                        if (nextCommand.customId === 'btnnext') {
+                                                            nextCommands.push(nextCommand);
+                                                        }
+                                                        else if (nextCommand.customId === 'btncancel') {
+                                                            await nextCommand.update({ content: 'You selected `Cancel`. You can dismiss this message.', components: [] });
+                                                            return;
+                                                        }
+                                                    }
+                                                    else {
+                                                        nameModalSubmit.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                                    }
+                                                }
+
+
                                             }
                                             else {
-                                                nameModalSubmit.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                                lastInt.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
                                             }
                                         }
                                         if (sendRoleSelect) {
-                                            const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
+                                            const lastInt = nextCommands[nextCommands.length - 1] ? nextCommands[nextCommands.length - 1] : stringSelectEdit;
                                             await lastInt.update({ content: 'Select new role to use', components: [rowSelectRole] });
                                             const roleCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.RoleSelect }).catch(err => { logger.error('roleCommand', err); });
                                             if (roleCommand) {
                                                 editCommands.push(roleCommand);
-                                                artEvent.role = roleCommand.roles.first();
-                                            }
-                                            else {
-                                                lastInt.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
-                                            }
-                                        }
-                                        if (sendDateModal_due || sendDateModal_signup) {
-                                            const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
-                                            await lastInt.showModal(modalDates);
-                                            await lastInt.editReply({ content: 'Update', components: [rowSelectRole] });
-                                            const dateModalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('dateModalSubmit', err); });
-                                            if (dateModalSubmit) {
-                                                editCommands.push(dateModalSubmit);
+                                                // SETTING EVENT ROLE
+                                                const roleToSet = roleCommand.roles.first();
+                                                artEvent.role = roleToSet;
 
-                                                dateData.year = dateModalSubmit.fields.getTextInputValue('startyear');
-                                                const currentYear = new Date().getFullYear();
-                                                if (dateData.year < currentYear) {
-                                                    console.log('YEAR VAL NOT VALID. Swapping to CURRENT');
-                                                    dateData.errors.push(`Year ${dateData.year} was invalid or empty; changed to ${currentYear}`);
-                                                    dateData.year = currentYear;
-                                                }
-                                                else {
-                                                    console.log('YEAR IS A VALID YEAR VALUE');
-                                                }
 
-                                                if (sendDateModal_signup) {
-                                                    dateData.signupMonth = dateModalSubmit.fields.getTextInputValue('signupstartmonth');
-                                                    dateData.signupDay = dateModalSubmit.fields.getTextInputValue('signupstartday');
-                                                    const validDate = validateDate(dateData.signupMonth, dateData.signupDay);
-                                                    if (validDate.valid) {
-                                                        dateData.signupDate = new Date(dateData.year, validDate.m, validDate.d);
-                                                        // SUCCESS SIGNUPDATE
-                                                        artEvent.signupDate = dateData.signupDate;
+                                                if (nextCounter > editCommands.length) {
+                                                    await roleCommand.update({ content: 'Click `Next` to continue, or `Cancel` to exit with no changes', components: [rowNext] });
+                                                    const nextCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('nextCommand', err); });
+                                                    if (nextCommand) {
+
+                                                        if (nextCommand.customId === 'btnnext') {
+                                                            nextCommands.push(nextCommand);
+                                                        }
+                                                        else if (nextCommand.customId === 'btncancel') {
+                                                            await nextCommand.update({ content: 'You selected `Cancel`. You can dismiss this message.', components: [] });
+                                                            return;
+                                                        }
                                                     }
                                                     else {
-                                                        if (validDate.error.code === 0) {
-                                                            dateData.errors.push(`Registration Month ${dateData.signupMonth} is not valid.`);
-                                                        }
-                                                        else if (validDate.error.code === 1) {
-                                                            dateData.errors.push(`Registration Day ${dateData.signupDay} is not valid for month ${dateData.dueMonth}`);
-                                                        }
+                                                        roleCommand.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
                                                     }
                                                 }
 
-                                                if (sendDateModal_due) {
-                                                    dateData.dueMonth = dateModalSubmit.fields.getTextInputValue('duedatemonth');
-                                                    dateData.dueDay = dateModalSubmit.fields.getTextInputValue('duedateday');
-                                                    const validDate = validateDate(dateData.dueMonth, dateData.dueDay);
-                                                    if (validDate.valid) {
-                                                            // REWORK THIS CODE... SPLIT DATE MODALS, CREATE YEAR INPUT UNIQUE TO DUE DATE...or see if the set of 3 actionrows can be reused.
-/*                                                         if (dateData.signupDate) {
-                                                            dateData.dueDate = new Date(dateData.signupDate.getFullYear(), validDate.m, validDate.d);
-                                                            if (dateData.dueDate > dateData.signupDate) {
-                                                                // SUCCESS DUEDATE
-                                                                artEvent.dueDate = dateData.dueDate;
+
+                                            }
+                                            else {
+                                                lastInt.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                            }
+                                        }
+                                        if (sendDateModal_signup) {
+                                            const lastInt = nextCommands[nextCommands.length - 1] ? nextCommands[nextCommands.length - 1] : stringSelectEdit;
+                                            await lastInt.showModal(modalDates);
+                                            await lastInt.editReply({ content: 'Update Due Date', components: [] });
+                                            const dateSignupModalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('dateSignupModalSubmit', err); });
+                                            if (dateSignupModalSubmit) {
+                                                editCommands.push(dateSignupModalSubmit);
+
+                                                const signupYear = dateSignupModalSubmit.fields.getTextInputValue('year');
+                                                const currentYear = new Date().getFullYear();
+                                                if (signupYear < currentYear) {
+                                                    editData.errors.push(`WARN: Year ${signupYear} is a past year`);
+                                                }
+
+                                                const signupMonth = dateSignupModalSubmit.fields.getTextInputValue('month');
+                                                const signupDay = dateSignupModalSubmit.fields.getTextInputValue('signupstartday');
+                                                const validDate = validateDate(signupMonth, signupDay);
+
+                                                if (validDate.valid) {
+                                                    editData.signupDate = new Date(signupYear, validDate.m, validDate.d);
+                                                    // SUCCESS SIGNUPDATE
+                                                    artEvent.signupDate = editData.signupDate;
+
+
+                                                    if (nextCounter > editCommands.length) {
+                                                        await dateSignupModalSubmit.update({ content: 'Click `Next` to continue, or `Cancel` to exit with no changes', components: [rowNext] });
+                                                        const nextCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('nextCommand', err); });
+                                                        if (nextCommand) {
+
+                                                            if (nextCommand.customId === 'btnnext') {
+                                                                nextCommands.push(nextCommand);
                                                             }
-                                                            else {
-                                                                dateData.errors.push(`Due Date ${dateData.dueDate} should be later than Signup Start Date ${dateData.signupDate}`);
+                                                            else if (nextCommand.customId === 'btncancel') {
+                                                                await nextCommand.update({ content: 'You selected `Cancel`. You can dismiss this message.', components: [] });
+                                                                return;
                                                             }
                                                         }
                                                         else {
-                                                            if (artEvent.signupDate) {
-                                                                if (dateData.dueDate > artEvent.signupDate) {
-                                                                // SUCCESS DUEDATE
-                                                                artEvent.dueDate = dateData.dueDate;
-                                                                }
-                                                                else {
-                                                                    dateData.errors.push(`Due Date ${dateData.dueDate} should be later than Signup Start Date ${dateData.signupDate}`);
-                                                                }
-                                                            }
-                                                            else {
-                                                                dateData.errors.push(`Set Signup Start Date before Due Date`);
-                                                            }
-                                                        } */
+                                                            dateSignupModalSubmit.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                                        }
                                                     }
-                                                    else {
-                                                        if (validDate.error.code === 0) {
-                                                            dateData.errors.push(`Due Month ${dateData.dueMonth} is not valid.`);
-                                                        }
-                                                        else if (validDate.error.code === 1) {
-                                                            dateData.errors.push(`Due Day ${dateData.dueDay} is not valid for month ${dateData.dueMonth}`);
-                                                        }
+
+
+                                                }
+                                                else {
+                                                    if (validDate.error.code === 0) {
+                                                        editData.errors.push(`ERROR: Registration Month ${signupMonth} is not valid.`);
+                                                    }
+                                                    else if (validDate.error.code === 1) {
+                                                        editData.errors.push(`ERROR: Registration Day ${signupDay} is not valid for month ${signupMonth}`);
                                                     }
                                                 }
                                             }
                                             else {
-                                                lastInt.update({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                                lastInt.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
                                             }
                                         }
-                                        // QUERY ALL HERE by grabbing ARTEVENT from above
+                                        if (sendDateModal_due) {
+                                            const lastInt = nextCommands[nextCommands.length - 1] ? nextCommands[nextCommands.length - 1] : stringSelectEdit;
+                                            await lastInt.showModal(modalDates);
+                                            await lastInt.editReply({ content: 'Update', components: [] });
+                                            const dateDueModalSubmit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('dateDueModalSubmit', err); });
+                                            if (dateDueModalSubmit) {
+                                                editCommands.push(dateDueModalSubmit);
+
+                                                const dueYear = dateDueModalSubmit.fields.getTextInputValue('year');
+                                                const currentYear = new Date().getFullYear();
+                                                if (dueYear < currentYear) {
+                                                    editData.errors.push(`WARN: Year ${dueYear} is a past year`);
+                                                }
+
+                                                const dueMonth = dateDueModalSubmit.fields.getTextInputValue('month');
+                                                const dueDay = dateDueModalSubmit.fields.getTextInputValue('signupstartday');
+                                                const validDate = validateDate(dueMonth, dueDay);
+
+                                                if (validDate.valid) {
+
+
+                                                    if (artEvent.type === EventType.get('OPEN') || artEvent.type === EventType.get('CLOSED')) {
+                                                        if (artEvent.signupDate) {
+                                                            editData.dueDate = new Date(dueYear, validDate.m, validDate.d);
+                                                            if (editData.dueDate > artEvent.signupDate) {
+                                                                // SUCCESS DUEDATE OPEN || CLOSED
+                                                                artEvent.dueDate = editData.dueDate;
+                                                            }
+                                                            else {
+                                                                editData.errors.push(`ERROR: Due Date ${editData.dueDate} should be later than Signup Start Date ${artEvent.signupDate}`);
+                                                            }
+                                                        }
+                                                        else {
+                                                            editData.errors.push(`ERROR: Set Signup Start Date before setting Due Date`);
+                                                        }
+                                                    }
+                                                    else if (artEvent.type === EventType.get('PUBLIC')) {
+                                                        editData.dueDate = new Date(dueYear, validDate.m, validDate.d);
+                                                        // SUCCESS DUEDATE PUBLIC
+                                                        artEvent.dueDate = editData.dueDate;
+                                                    }
+
+
+                                                }
+                                                else {
+                                                    if (validDate.error.code === 0) {
+                                                        editData.errors.push(`ERROR: Due Month ${dueMonth} is not valid.`);
+                                                    }
+                                                    else if (validDate.error.code === 1) {
+                                                        editData.errors.push(`ERROR: Due Day ${dueDay} is not valid for month ${dueMonth}`);
+                                                    }
+                                                }
+                                            }
+                                            else {
+                                                lastInt.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
+                                            }
+                                        }
+                                        let stringErrors = '';
+                                        for (let i = 0; i < editData.errors.length; i++) {
+                                            //
+                                        }
+                                        embedConfirm.setFields({ name: 'Errors', value: 'Only you can see this. You can dismiss this.' });
                                         const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
-                                        await lastInt.update({ content: 'That was a lot... TODO, grab ALL replies using array.', components: [] });
+                                        await lastInt.update({ embeds: [embedConfirm], components: [rowVerify] });
+
+                                        const verifyEditsCommand = await interaction.channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('verifyEditsCommand', err); });
+
+                                        if (verifyEditsCommand) {
+                                            // SET all ARTEVENT here
+                                            // QUERY ALL HERE by grabbing ARTEVENT from above
+                                            await verifyEditsCommand.update({ content: 'Changes applied successfully. You can dismiss this message.', components: [] });
+                                        }
+                                        else {
+                                            logger.info(`${interaction.user.username} NO PRESS verifyEditsCommand!`);
+                                            await mainCommand.editReply({ content: 'Interaction expired. Try again after `' + cooldownTimer / 1000 + ' seconds`.', components: [] });
+                                        }
                                     }
                                     else {
                                         logger.info(`${interaction.user.username} NO SELECT stringSelectEdit!`);
