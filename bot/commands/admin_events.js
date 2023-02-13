@@ -7,29 +7,33 @@ const permittedRoles = ['Admin', 'Mod'];
 const cooldownTimer = 10000;
 
 const EventType = new Collection()
-    .set('OPEN', { type: 'open', value: 0 })
-    .set('CLOSED', { type: 'closed', value: 1 })
-    .set('PUBLIC', { type: 'public', value: 2 })
-    .set('LIMITED', { type: 'limited', value: 3 });
+    .set('OPEN', { name: 'Open', value: 0 })
+    .set('CLOSED', { name: 'Closed', value: 1 })
+    .set('PUBLIC', { name: 'Public', value: 2 })
+    .set('LIMITED', { name: 'Limited', value: 3 });
 
 class ArtEvent {
     constructor(type, id, name, role) {
-        this._type = type;
-        this._id = id;
-        this._name = name;
-        this._dueDate;
+        this._type;
+        this._id;
+        this._name;
         this._role = role;
+        this._dueDate;
         this._discord_startDate;
         this._discord_endDate;
         this._public_startDate;
         this._public_endDate;
+
+        this.type = type;
+        this.id = id;
+        this.name = name;
     }
 
     get type() { return this._type; }
     set type(val) {
 
         if (EventType.has(val)) {
-            this._type = val;
+            this._type = EventType.get(val);
             logger.info('ARTEVENT: type SET to ' + this._type);
         }
         else {
@@ -73,7 +77,7 @@ class ArtEvent {
             }
         }
         else {
-            logger.warn('ARTEVENT: Set Event type to "OPEN", "CLOSED" or "PUBLIC" to set a role.');
+            logger.warn(`ARTEVENT: Set Event type to "OPEN", "CLOSED" or "PUBLIC" to set a role. Current role: ${this.role}`);
         }
     }
 
@@ -104,7 +108,7 @@ class ArtEvent {
             }
         }
         else {
-            logger.warn('ARTEVENT: Set Event type to "OPEN" or "CLOSED" to set signup dates.');
+            logger.warn(`ARTEVENT: Set Event type to "OPEN" or "CLOSED" to set signup dates. Current role: ${this.role}`);
         }
     }
 
@@ -211,25 +215,26 @@ module.exports = {
                     );
 
                 const editOptions = {
-                    type: { label: 'Type', description: 'Change event Type', value: 'type' },
-                    id: { label: 'Id', description: 'Change event Id', value: 'id' },
-                    name: { label: 'Name', description: 'Change event\'s vanity name', value: 'name' },
-                    role: { label: 'Role', description: 'Change event\'s role', value: 'role' },
-                    signupDate: { label: 'Signup dates', description: 'Change Discord signup date', value: 'discordsignup' },
-                    dueDate: { label: 'Due date', description: 'Change event\'s due date', value: 'date' }
+                    type: { label: 'Type', description: 'Edit event Type', value: 'type' },
+                    id: { label: 'Id', description: 'Edit event Id', value: 'id' },
+                    name: { label: 'Name', description: 'Edit event Name', value: 'name' },
+                    role: { label: 'Role', description: 'Edit event Role', value: 'role' },
+                    signupDate: { label: 'Signup dates', description: 'Edit Discord Dignup Date', value: 'discordsignup' },
+                    dueDate: { label: 'Due date', description: 'Edit event Due Date', value: 'date' }
                 };
 
                 const rowEditSelect = new ActionRowBuilder()
                     .addComponents(
                         new StringSelectMenuBuilder()
                             .setCustomId('selectedit')
-                            .setPlaceholder('Select all you want to change')
+                            .setPlaceholder('Select all to edit')
                     );
 
                 // Event Edit and Creation components
                 // Type select
 
                 const embedConfirm = new EmbedBuilder()
+                    .setAuthor({ name: interaction.user.username + ': ' + interaction.user.id })
                     .setColor(0x0099FF)
                     .setTitle('Review Changes')
                     .setDescription('Valid changes and errors');
@@ -250,21 +255,21 @@ module.exports = {
                 // Name types
 
                 const modalNames = new ModalBuilder()
-                    .setCustomId('modaleditnames')
+                    .setCustomId('modalnames')
                     .setTitle('Set new values');
 
                 const rowEventId = new ActionRowBuilder()
                     .addComponents(
                         new TextInputBuilder()
-                            .setCustomId('editid')
-                            .setLabel('Input new event id (ie: dsse2022)')
+                            .setCustomId('rowid')
+                            .setLabel('Id (dsse2022)')
                             .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(20).setRequired(true));
 
                 const rowEventName = new ActionRowBuilder()
                     .addComponents(
                         new TextInputBuilder()
-                            .setCustomId('editname')
-                            .setLabel('Input new event name (ie: Secret Santa)')
+                            .setCustomId('rowname')
+                            .setLabel('Name (Secret Santa)')
                             .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(35).setRequired(true));
 
                 // Role select
@@ -304,12 +309,12 @@ module.exports = {
                                     .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(2).setRequired(true))
                     );
 
-                const testEvent = new ArtEvent(EventType.get('OPEN'), 'dsse2022', 'Destiny Secret Santa Event 2022', null);
+                const testEvent = new ArtEvent('OPEN', 'dsse2022', 'Destiny Secret Santa Event 2022', null);
                 interaction.client._tempEvents.set(testEvent.id, testEvent);
 
                 const filter = intr => intr.user.id === interaction.user.id;
 
-                await interaction.reply({ content: arrayToString(permittedRoles) + ' permitted.\n**Create**, **Edit** or **Delete** an event.', ephemeral: true, components: [rowMain] });
+                await interaction.reply({ content: arrayToString(permittedRoles, true, ' ') + ' permitted.\n**Create**, **Edit** or **Delete** an event.', ephemeral: true, components: [rowMain] });
 
                 const mainCommand = await interaction.channel.awaitMessageComponent({ time: 10000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('mainCommand', err); });
 
@@ -367,7 +372,7 @@ module.exports = {
                     else if (mainCommand.customId === 'btnedit') {
                         const pastEvents = ['dotl2022', 'dsse2022', 'crimsondays2023'];
                         await mainCommand.showModal(modalId);
-                        await mainCommand.editReply({ content: 'Type in the name of the event you want to edit. The most recent events include: ' + arrayToString(pastEvents), components: [] });
+                        await mainCommand.editReply({ content: 'Type in the name of the event you want to edit. The most recent events include: ' + arrayToString(pastEvents, true, ' '), components: [] });
 
                         const modalSubmitEdit = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('modalSubmitEdit', err); });
 
@@ -377,7 +382,9 @@ module.exports = {
                             const eventName = modalSubmitEdit.fields.getTextInputValue('textinputname');
                             // QUERY DB FOR EVENT WITH ID FROM INPUT
                             const artEvent = interaction.client._tempEvents.get(eventName);
+
                             if (artEvent) {
+
                                 if (artEvent.type === EventType.get('OPEN') || artEvent.type === EventType.get('CLOSED')) {
                                     rowEditSelect.components[0].setMaxValues(6);
                                     rowEditSelect.components[0].addOptions([
@@ -407,10 +414,11 @@ module.exports = {
                                         editOptions.name
                                     ]);
                                 }
-                                else if (!artEvent.type) {
-                                    artEvent.type = EventType.get('LIMITED');
+                                else {
+                                    artEvent.type = 'LIMITED';
                                     logger.error('event has no type. Assigning LIMITED');
                                 }
+
                                 await modalSubmitEdit.update({ content: 'What do you want to edit? -TODO', components: [rowEditSelect] });
 
                                 const stringSelectEdit = await interaction.channel.awaitMessageComponent({ time: 30000, filter, ComponentType: ComponentType.StringSelect });
@@ -432,38 +440,50 @@ module.exports = {
                                         const nextCommands = [];
                                         let nextCounter = 0;
 
-                                        const editData = { errors: [] };
+                                        const editData = { errors: [], currentValues: [], newValues: [], type: null, id: null, name: null, role: null, signupDate: null, dueDate: null };
 
                                         if (changeValues.includes('type')) {
                                             sendTypeSelect = true;
                                             nextCounter++;
+                                            const string = artEvent.type.name ? artEvent.type.name : null;
+                                            editData.currentValues.push('**TYPE:** ' + string);
                                             logger.warn('using type');
                                         }
                                         if (changeValues.includes('id')) {
                                             sendNameModal_id = true;
                                             modalNames.addComponents(rowEventId);
                                             nextCounter++;
+                                            const string = artEvent.id ? artEvent.id : null;
+                                            editData.currentValues.push('**ID:** ' + string);
                                             logger.warn('using id');
                                         }
                                         if (changeValues.includes('name')) {
                                             sendNameModal_name = true;
                                             modalNames.addComponents(rowEventName);
                                             if (!sendNameModal_id) nextCounter++;
+                                            const string = artEvent.name ? artEvent.name : 'Null';
+                                            editData.currentValues.push('**NAME:** ' + string);
                                             logger.warn('using name');
                                         }
                                         if (changeValues.includes('role')) {
                                             sendRoleSelect = true;
                                             nextCounter++;
+                                            const string = artEvent.role ? artEvent.role : 'Null';
+                                            editData.currentValues.push('**ROLE:** ' + string);
                                             logger.warn('using role');
                                         }
                                         if (changeValues.includes('discordsignup')) {
                                             sendDateModal_signup = true;
                                             nextCounter++;
-                                            logger.warn('using regi date');
+                                            const string = artEvent.signupDate ? artEvent.signupDate.getMonth() + 1 + ' ' + artEvent.signupDate.getDate() + ' ' + artEvent.signupDate.getFullYear() : 'Null';
+                                            editData.currentValues.push('**SIGNUP DATE:** ' + string);
+                                            logger.warn('using signup date');
                                         }
                                         if (changeValues.includes('date')) {
                                             sendDateModal_due = true;
                                             nextCounter++;
+                                            const string = artEvent.dueDate ? artEvent.dueDate.getMonth() + 1 + ' ' + artEvent.dueDate.getDate() + ' ' + artEvent.dueDate.getFullYear() : 'Null';
+                                            editData.currentValues.push('**DUE DATE:** ' + string);
                                             logger.warn('using duedate');
                                         }
 
@@ -473,8 +493,9 @@ module.exports = {
                                             if (typeCommand) {
                                                 editCommands.push(typeCommand);
                                                 // SETTING EVENT TYPE
-                                                const typeToSet = typeCommand.values[0];
-                                                artEvent.type = typeToSet;
+                                                const typeToSet = EventType.get(typeCommand.values[0]);
+                                                editData.type = typeToSet;
+                                                editData.newValues.push(typeToSet.name);
 
 
                                                 if (nextCounter > editCommands.length) {
@@ -511,12 +532,14 @@ module.exports = {
                                                 editCommands.push(nameModalSubmit);
 
                                                 if (sendNameModal_id) {
-                                                    const idToSet = nameModalSubmit.fields.getTextInputValue('id');
-                                                    artEvent.id = idToSet;
+                                                    const idToSet = nameModalSubmit.fields.getTextInputValue('rowid');
+                                                    editData.id = idToSet;
+                                                    editData.newValues.push(idToSet);
                                                 }
                                                 if (sendNameModal_name) {
-                                                    const nameToSet = nameModalSubmit.fields.getTextInputValue('name');
-                                                    artEvent.name = nameToSet;
+                                                    const nameToSet = nameModalSubmit.fields.getTextInputValue('rowname');
+                                                    editData.name = nameToSet;
+                                                    editData.newValues.push(nameToSet);
                                                 }
 
                                                 if (nextCounter > editCommands.length) {
@@ -551,7 +574,13 @@ module.exports = {
                                                 editCommands.push(roleCommand);
                                                 // SETTING EVENT ROLE
                                                 const roleToSet = roleCommand.roles.first();
-                                                artEvent.role = roleToSet;
+                                                if (roleToSet) {
+                                                    editData.role = roleToSet;
+                                                    editData.newValues.push(roleToSet.name);
+                                                }
+                                                else {
+                                                    editData.errors.push(`ERROR: Failed to retreive Guild Role`);
+                                                }
 
 
                                                 if (nextCounter > editCommands.length) {
@@ -597,9 +626,11 @@ module.exports = {
                                                 const validDate = validateDate(signupMonth, signupDay);
 
                                                 if (validDate.valid) {
-                                                    editData.signupDate = new Date(signupYear, validDate.m, validDate.d);
                                                     // SUCCESS SIGNUPDATE
-                                                    artEvent.signupDate = editData.signupDate;
+                                                    editData.signupDate = new Date(signupYear, validDate.m, validDate.d);
+                                                    editData.newValues.push(editData.signupDate.getMonth() + 1 + ' ' + editData.signupDate.getDate() + ' ' + editData.signupDate.getFullYear());
+                                                    const test = editData.signupDate.getMonth() + 1 + ' ' + editData.signupDate.getDate() + ' ' + editData.signupDate.getFullYear();
+                                                    console.warn(test.toString());
 
 
                                                     if (nextCounter > editCommands.length) {
@@ -657,11 +688,14 @@ module.exports = {
 
 
                                                     if (artEvent.type === EventType.get('OPEN') || artEvent.type === EventType.get('CLOSED')) {
-                                                        if (artEvent.signupDate) {
+                                                        const dateToCheck = editData.signupDate ? editData.signupDate : artEvent.signupDate;
+                                                        if (dateToCheck) {
                                                             editData.dueDate = new Date(dueYear, validDate.m, validDate.d);
-                                                            if (editData.dueDate > artEvent.signupDate) {
+                                                            if (editData.dueDate > dateToCheck) {
                                                                 // SUCCESS DUEDATE OPEN || CLOSED
-                                                                artEvent.dueDate = editData.dueDate;
+                                                                editData.newValues.push(editData.dueDate.getMonth() + 1 + ' ' + editData.dueDate.getDate() + ' ' + editData.dueDate.getFullYear());
+                                                                const test = editData.dueDate.getMonth() + 1 + ' ' + editData.dueDate.getDate() + ' ' + editData.dueDate.getFullYear();
+                                                                console.warn(test.toString());
                                                             }
                                                             else {
                                                                 editData.errors.push(`ERROR: Due Date ${editData.dueDate} should be later than Signup Start Date ${artEvent.signupDate}`);
@@ -672,9 +706,11 @@ module.exports = {
                                                         }
                                                     }
                                                     else if (artEvent.type === EventType.get('PUBLIC')) {
-                                                        editData.dueDate = new Date(dueYear, validDate.m, validDate.d);
                                                         // SUCCESS DUEDATE PUBLIC
-                                                        artEvent.dueDate = editData.dueDate;
+                                                        editData.dueDate = new Date(dueYear, validDate.m, validDate.d);
+                                                        editData.newValues.push(editData.dueDate.getMonth() + 1 + ' ' + editData.dueDate.getDate() + ' ' + editData.dueDate.getFullYear());
+                                                        const test = editData.dueDate.getMonth() + 1 + ' ' + editData.dueDate.getDate() + ' ' + editData.dueDate.getFullYear();
+                                                        console.warn(test.toString());
                                                     }
 
 
@@ -692,11 +728,17 @@ module.exports = {
                                                 lastInt.editReply({ content: "Interaction expired. Try again after `" + cooldownTimer / 1000 + " seconds`.", components: [] });
                                             }
                                         }
-                                        let stringErrors = '';
-                                        for (let i = 0; i < editData.errors.length; i++) {
-                                            //
-                                        }
-                                        embedConfirm.setFields({ name: 'Errors', value: 'Only you can see this. You can dismiss this.' });
+
+                                        const stringsToPublish = {};
+                                        stringsToPublish.Errors = arrayToString(editData.errors, false, '\n');
+                                        stringsToPublish.CurrentValues = arrayToString(editData.currentValues, false, '\n');
+                                        stringsToPublish.EditValues = arrayToString(editData.newValues, false, '\n');
+
+                                        embedConfirm.addFields({ name: 'Errors', value: stringsToPublish.Errors ? stringsToPublish.Errors : 'None', inline: false });
+                                        embedConfirm.addFields({ name: '--------------------', value: ' ', inline: false });
+                                        embedConfirm.addFields({ name: 'Current Values', value: stringsToPublish.CurrentValues ? stringsToPublish.CurrentValues : 'None', inline: true });
+                                        embedConfirm.addFields({ name: 'New Values', value: stringsToPublish.EditValues ? stringsToPublish.EditValues : 'None', inline: true });
+
                                         const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
                                         await lastInt.update({ embeds: [embedConfirm], components: [rowVerify] });
 
@@ -739,7 +781,7 @@ module.exports = {
                         const adminPriviledge = await priviledgeCheck(interaction, ['Admin']);
                         if (adminPriviledge.has(interaction.user.id)) {
                             await mainCommand.showModal(modalId);
-                            await mainCommand.editReply({ content: 'Type in the name of the event you want to edit. The most recent events include: ' + arrayToString(pastEvents), components: [] });
+                            await mainCommand.editReply({ content: 'Type in the name of the event you want to edit. The most recent events include: ' + arrayToString(pastEvents, true, ' '), components: [] });
 
                             const modalSubmitDelete = await interaction.awaitModalSubmit({ time: 30000, filter }).catch(err => { logger.error('modalSubmitDelete', err); });
 
@@ -802,11 +844,13 @@ module.exports = {
     }
 };
 
-// TODO - For creating or editing date, have user type it in such as 'August 10, 2023'
-// And therefore, we'll only need 2 input boxes for start and end date, so we can validate range.
-// Basically, 1 - Date for start (as formatted above), 2 - Time (ask for military), 3 - Date for end, 4 - Time, 5 - Timezone
-// TODO - FIGURE OUT HOW TO HANDLE DST vs STANDARD TIME
-// TODO - Timing issues with select menu. If you select none, cooldown resets sooner than timer period for command.
+// TODO - Add proper instructions for each Next/Cancel interaction in Edit command
+// TODO - Test errors in edit command to try and get "TypeError: Cannot read properties of null (reading 'toString')" to happen.
+// I don't know what triggered the last one, but it happened before I separated the "const string" to the rest of the editables
+// Revert all the non-date ones back to the big long string, just temporarily, to test.
+// Add logs using toString within the logic blocks to see which one exactly had triggered the last one I saw.
+
+// TODO - Timing issues with select menu. If you select none, cooldown resets sooner than timer period for command. Try adding "max: 1"
 // When the above happens, if user uses command again, the cooldown wont be there to stop them. Bot errors out.
 // Research that. See if there's a way to kill the connection. Like, see if you can find last interaction by user
 // and compare the ID. If it's the same slash command, either don't allow them to continue OR somehow kill it?

@@ -27,15 +27,26 @@ async function priviledgeCheck(interaction, roleNames) {
     return roles;
 }
 
-function arrayToString(array) {
+function arrayToString(array, inline, styling) {
     let string = '';
     for (let i = 0; i < array.length; i++) {
-        if (i < array.length - 1) {
-            string += inlineCode(array[i].toString()) + ' ';
+        if (inline) {
+            if (i < array.length - 1) {
+                string += inlineCode(array[i].toString()) + styling;
+            }
+            else {
+                string += inlineCode(array[i].toString());
+            }
         }
         else {
-            string += inlineCode(array[i].toString());
+            if (i < array.length - 1) {
+                string += array[i].toString() + styling;
+            }
+            else {
+                string += array[i].toString();
+            }
         }
+
     }
     return string;
 }
