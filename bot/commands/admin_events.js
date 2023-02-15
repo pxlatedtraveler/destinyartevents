@@ -185,18 +185,18 @@ module.exports = {
                 const modalId = new ModalBuilder()
                     .setCustomId('modalnameinput')
                     .setTitle('Type in name of event')
-                        .addComponents(
-                            new ActionRowBuilder()
-                                .addComponents(
-                                    new TextInputBuilder()
-                                        .setCustomId('textinputname')
-                                        .setLabel('Event Id (ie: dsse2022)')
-                                        .setStyle(TextInputStyle.Short)
-                                        .setMinLength(1)
-                                        .setMaxLength(20)
-                                        .setRequired(true)
-                                )
-                        );
+                    .addComponents(
+                        new ActionRowBuilder()
+                            .addComponents(
+                                new TextInputBuilder()
+                                    .setCustomId('textinputname')
+                                    .setLabel('Event Id (ie: dsse2022)')
+                                    .setStyle(TextInputStyle.Short)
+                                    .setMinLength(1)
+                                    .setMaxLength(20)
+                                    .setRequired(true)
+                            )
+                    );
 
                 const rowMain = new ActionRowBuilder()
                     .addComponents(
