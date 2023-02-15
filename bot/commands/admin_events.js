@@ -445,7 +445,7 @@ module.exports = {
                                         if (changeValues.includes('type')) {
                                             sendTypeSelect = true;
                                             nextCounter++;
-                                            const string = artEvent.type.name ? artEvent.type.name : null;
+                                            const string = artEvent.type.name ? artEvent.type.name : 'Null';
                                             editData.currentValues.push('**TYPE:** ' + string);
                                             logger.warn('using type');
                                         }
@@ -453,7 +453,7 @@ module.exports = {
                                             sendNameModal_id = true;
                                             modalNames.addComponents(rowEventId);
                                             nextCounter++;
-                                            const string = artEvent.id ? artEvent.id : null;
+                                            const string = artEvent.id ? artEvent.id : 'Null';
                                             editData.currentValues.push('**ID:** ' + string);
                                             logger.warn('using id');
                                         }
@@ -758,7 +758,6 @@ module.exports = {
                                         logger.info(`${interaction.user.username} NO SELECT stringSelectEdit!`);
                                         await mainCommand.editReply({ content: 'Interaction expired. Try again after `' + cooldownTimer / 1000 + ' seconds`.', components: [] });
                                     }
-
                                 }
                             }
                             else {
@@ -845,10 +844,6 @@ module.exports = {
 };
 
 // TODO - Add proper instructions for each Next/Cancel interaction in Edit command
-// TODO - Test errors in edit command to try and get "TypeError: Cannot read properties of null (reading 'toString')" to happen.
-// I don't know what triggered the last one, but it happened before I separated the "const string" to the rest of the editables
-// Revert all the non-date ones back to the big long string, just temporarily, to test.
-// Add logs using toString within the logic blocks to see which one exactly had triggered the last one I saw.
 
 // TODO - Timing issues with select menu. If you select none, cooldown resets sooner than timer period for command. Try adding "max: 1"
 // When the above happens, if user uses command again, the cooldown wont be there to stop them. Bot errors out.
