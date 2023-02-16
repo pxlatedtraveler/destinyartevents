@@ -32,6 +32,7 @@ client.commands = new Collection();
 client.cooldowns = new Collection();
 client._tempBirthdays = new Collection();
 client._tempEvents = new Collection();
+client._tempSurvey = new Collection();
 
 (async () => {
     client.db = mysql.createPool({
