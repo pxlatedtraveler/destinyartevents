@@ -102,7 +102,6 @@ module.exports = {
                             .setRequired(true)
                     );
 
-
                 const textInputName = new ActionRowBuilder()
                     .addComponents(
                         new TextInputBuilder()
@@ -126,11 +125,6 @@ module.exports = {
                     .setLabel('Edit Survey')
                     .setStyle(ButtonStyle.Primary);
 
-                const buttonPublish = new ButtonBuilder()
-                    .setCustomId('btnpublish')
-                    .setLabel('Publish')
-                    .setStyle(ButtonStyle.Success);
-
                 const buttonDelete = new ButtonBuilder()
                     .setCustomId('btndelete')
                     .setLabel('Delete Survey')
@@ -143,7 +137,7 @@ module.exports = {
                 // const survey = new SurveyBuilder();
 
                 // API DB QUERY GET ENTRY, CHECK IF OBJ EXISTS
-                interaction.client._tempSurvey.size > 0 ? rowMain.addComponents(buttonPublish, buttonEdit, buttonDelete, buttonCancel) : rowMain.addComponents(buttonCreate, buttonCancel);
+                interaction.client._tempSurvey.size > 0 ? rowMain.addComponents(buttonCreate, buttonEdit, buttonDelete, buttonCancel) : rowMain.addComponents(buttonCreate, buttonCancel);
                 const filter = intr => intr.user.id === interaction.user.id;
 
                 await interaction.reply({ content: 'Select an action to perform.', components: [rowMain] });
@@ -154,154 +148,25 @@ module.exports = {
                     refreshTimeout(interaction, timeout);
 
                     if (buttonReply.customId === 'btncreate') {
-                        const requiredLength = 3;
 
                         modalName.setTitle('Input Survey Id and Name').addComponents(textInputId, textInputName);
 
-                        const messages = [buttonReply];
-                        let msgCounter = messages.length - 1;
-                        const modals = [modalName];
-                        let modalCounter = modals.length - 1;
-                        let offset = 0;
-                        const answers = [{ label: 'Question 1?', style: TextInputStyle }];
-                        const embeds = [];
-                        let canceled = false;
-                        let submitted = false;
+                        const results = await loopEditableModal(buttonReply, modalName, { actionRow: rowReview, next: buttonAnswersNext, edit: buttonAnswersEdit, submit: buttonAnswersSubmit, cancel: buttonAnswersCancel }, filter).catch(err => { logger.error('loopEditableModal create survey ' + err); });
 
-                        while (!canceled || !submitted) {
-                            refreshTimeout(interaction, timeout);
+                        if (results.submitted) {
+                            const surveyId = results.answers[0];
+                            const surveyName = results.answers[1];
+                            const surveyQuestions = results.answers.splice(2);
 
-                            offset = 0;
-                            for (let i = modalCounter; i > 0; i--) {
-                                offset += answers[i - 1].ans.length;
-                            }
-
-                            if (!modals[modalCounter]) {
-                                console.warn('No modal in array slot: ', modals[modalCounter], ' Creating!');
-                                modals[modalCounter] = new ModalBuilder()
-                                    .setCustomId('modal_' + (modalCounter))
-                                    .setTitle('Survey Builder Page ' + (modalCounter + 1));
-                                for (let i = 0; i < 5; i++) {
-                                    modals[modalCounter].addComponents(
-                                        new ActionRowBuilder()
-                                            .addComponents(
-                                                new TextInputBuilder()
-                                                    .setCustomId('textinputid_' + i)
-                                                    .setLabel('Question (Max 45 characters)')
-                                                    .setStyle(TextInputStyle.Short)
-                                                    .setMaxLength(45)
-                                                    .setRequired(false)
-                                            )
-                                    );
-                                }
-                            }
-                            else {
-                                // add labels to answers object first, then un-comment this.
-/*                                 for (let i = 0; i < modals[modalCounter].components[0].components.length; i++) {
-                                    modals[modalCounter].components[0].components[i].setValue(answers[modalCounter].labels[i]);
-                                } */
-                            }
-                            await messages[msgCounter].showModal(modals[modalCounter]);
-                            await messages[msgCounter].editReply({ components: [] });
-                            const modalSubmit = await messages[msgCounter].awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => { logger.error('modalSubmit' + (msgCounter + 1), err); });
-
-                            if (modalSubmit) {
-                                // also grab the labels and use these as the Fields name so it makes sense. Filter as well.
-                                answers[modalCounter] = { ans: modalSubmit.fields.fields.map(e => e.value), };
-                                answers[modalCounter].ans = answers[modalCounter].ans.filter(e => e.length > 0);
-                                if (answers[modalCounter].ans.length > 0) {
-
-                                    rowReview.setComponents(buttonAnswersNext, buttonAnswersEdit);
-                                    if ((offset + answers[modalCounter].ans.length) >= requiredLength) {
-                                        rowReview.addComponents(buttonAnswersSubmit);
-                                    }
-                                    rowReview.addComponents(buttonAnswersCancel);
-
-                                    if (!embeds[modalCounter]) {
-                                        embeds[modalCounter] = new EmbedBuilder()
-                                            .setColor(0x0099FF)
-                                            .setTitle('Review Page ' + (modalCounter + 1))
-                                            .setDescription('Review, edit, or submit your answers.');
-                                    }
-                                    else {
-                                        embeds[modalCounter].data.fields = [];
-                                    }
-
-                                    for (let i = 0; i < 5; i++) {
-                                        if (answers[modalCounter].ans[i]) {
-                                            embeds[modalCounter].addFields({ name: 'Field: ' + (i + offset + 1), value: answers[modalCounter].ans[i] });
-                                        }
-                                    }
-                                }
-                                else {
-                                    rowReview.setComponents(buttonAnswersEdit, buttonAnswersCancel);
-                                    if (!embeds[modalCounter]) {
-                                        embeds[modalCounter] = new EmbedBuilder()
-                                            .setColor(0x0099FF)
-                                            .setTitle('Review Page ' + (modalCounter + 1))
-                                            .setDescription('Please include at least one question.');
-                                    }
-                                    else {
-                                        embeds[modalCounter].data.fields = [];
-                                    }
-                                }
-                                rowReview.components.forEach(ele => {
-                                    ele.setCustomId(ele.data.custom_id.slice(0, 10) + '_' + msgCounter);
-                                });
-                                await modalSubmit.update({ embeds: [embeds[modalCounter]], content: 'Review your questions.', components: [rowReview] });
-                                const buttonVerify = await modalSubmit.channel.awaitMessageComponent({ time: selectTime, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('buttonVerify' + (msgCounter + 1), err); });
-
-                                if (buttonVerify) {
-                                    messages.push(buttonVerify);
-                                    if (buttonVerify.customId === 'btnansnext_' + msgCounter) {
-                                        modalCounter++;
-                                        msgCounter++;
-                                        console.log('USED NEXT ' + msgCounter);
-                                    }
-                                    else if (buttonVerify.customId === 'btnansedit_' + msgCounter) {
-                                        msgCounter++;
-                                        console.log('USED EDIT' + msgCounter);
-                                    }
-                                    else if (buttonVerify.customId === 'btnanssbmt_' + msgCounter) {
-                                        submitted = true;
-                                        await buttonVerify.update({ embeds: [], content: `Survey Answers Created!`, components: [] });
-                                    }
-                                    else if (buttonVerify.customId === 'btnanscncl_' + msgCounter) {
-                                        canceled = true;
-                                        await buttonVerify.update({ embeds: [], content: 'Interaction canceled. You can dismiss this message.', components: [] });
-                                    }
-                                }
-                                else {
-                                    await modalSubmit.editReply({ content: 'No button selected on time.', ephemeral: true, components: [] });
-                                }
-                            }
-                            else {
-                                await messages[msgCounter].editReply({ content: 'No form submitted on time.', ephemeral: true, components: [] });
-                                canceled = true;
-                            }
-                        // While end
-                        }
-
-                        // grab data explicitely, gathering all questions into one array
-                        const surveyId = answers[0].ans[0];
-                        const surveyName = answers[0].ans[1];
-                        let surveyQuestions = [];
-                        for (let i = 1; i < answers.length; i++) {
-                            if (answers[i].ans.length > 0) {
-                                surveyQuestions = surveyQuestions.concat(answers[i].ans);
-                            }
-                        }
-
-                        if (submitted) {
                             const survey = new SurveyBuilder(surveyId, surveyName, surveyQuestions);
-                            interaction.client._tempSurvey.set(survey.name, survey);
+                            interaction.client._tempSurvey.set(survey.id, survey);
                         }
                     }
 
 
                     else if (buttonReply.customId === 'btnedit') {
                         modalName.setTitle('Input survey Id').addComponents(textInputId);
-                        await buttonReply.showModa(modalName);
+                        await buttonReply.showModal(modalName);
                         await buttonReply.editReply({ content: 'Awaiting Submit', components: [] });
                         const modalReply = await buttonReply.awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => { logger.error('btnedit modalreply', err); });
                         if (modalReply) {
@@ -336,46 +201,8 @@ module.exports = {
                         }
                     }
 
-
-                    else if (buttonReply.customId === 'btnpublish') {
-                        modalName.setTitle('Input Id of survey').addComponents(textInputId);
-                        await buttonReply.showModa(modalName);
-                        await buttonReply.editReply({ content: 'Awaiting Submit', components: [] });
-                        const modalReply = await buttonReply.awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => { logger.error('btnpublish modalreply', err); });
-                        if (modalReply) {
-                            refreshTimeout(interaction, timeout);
-                            const surveyName = modalReply.fields.getTextInputValue('textinputid');
-                            const survey = interaction.client._tempSurvey.get(surveyName);
-                            if (survey) {
-                                await modalReply.update({ content: `Editing survey ${survey.name}. Proceed?`, components: [rowVerify] });
-                                const buttonVerify = await interaction.channel.awaitMessageComponent({ time: selectTime, filter, max: 1, ComponentType: ComponentType.Button }).catch(err => { logger.error('btnedit buttonVerify', err); });
-
-                                if (buttonVerify) {
-                                    if (buttonVerify.customId === 'btnconfirm') {
-                                        survey.active = true;
-                                        await buttonVerify.update({ content: `Survey ${survey.name} will now be accessible to server members from //sometime// till //sometime//. You can dismiss this message.`, components: [] });
-                                    }
-                                    else if (buttonVerify.customId === 'btnreject') {
-                                        await buttonVerify.update({ content: 'Interaction canceled. You can dismiss this message.', components: [] });
-                                    }
-                                }
-                                else {
-                                    await modalReply.editReply({ content: 'No button selected on time.', ephemeral: true, components: [] });
-                                }
-
-                            }
-                            else {
-                                await modalReply.update({ content: 'No survey exists by that Id', components: [] });
-                            }
-                        }
-                        else {
-                            await buttonReply.editReply({ content: 'No form submitted on time.', ephemeral: true, components: [] });
-                        }
-                    }
-
-
                     else if (buttonReply.customId === 'btndelete') {
-                        await buttonReply.showModa(modalName);
+                        await buttonReply.showModal(modalName);
                         await buttonReply.editReply({ content: 'Awaiting Submit', components: [] });
                         const modalReply = await buttonReply.awaitModalSubmit({ time: 30000, filter, max: 1 }).catch(err => { logger.error('btnpublish modalreply', err); });
                         if (modalReply) {
@@ -398,7 +225,6 @@ module.exports = {
                                 else {
                                     await modalReply.editReply({ content: 'No button selected on time.', ephemeral: true, components: [] });
                                 }
-
 
                             }
                             else {
@@ -433,49 +259,149 @@ module.exports = {
  * @param {*} filter filter to use when collecting replies
  * @returns message reply or void
  */
-/* async function loopEditableModal (modalReply, content, components, filter) {
+async function loopEditableModal(interaction, modal, btns, filter) {
+    const requiredLength = 3;
+    const interactions = [interaction];
+    let iCounter = interactions.length - 1;
 
-    const modalReplies = [modalReply];
-    const modalAnswers = [];
-    const embed = new EmbedBuilder()
-        .setColor(0x0099FF)
-        .setTitle('Page Submitted!')
-        .setDescription('Review, edit, or submit your answers')
-        .setFields({ name: 'Question', value: 'Only you can see this. You can dismiss this.' });
+    const modals = [modal];
+    let mCounter = modals.length - 1;
 
-    for (let i = 0; let i < modalReply.)
+    const answers = [];
+    const embeds = [];
 
-    let replied = false;
-    let counter = 0;
-    while (!replied || counter < 50) {
+    let offset = 0;
+    let editing = false;
+    let canceled = false;
+    let submitted = false;
 
-        await modalReplies[counter].update({ embeds: [embed], content: content, components: components });
-        const buttonReply = await modalReplies[counter].channel.awaitMessageComponent({ time: 15000, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('buttonReply_' + (counter + 1), err); });
+    while (!canceled && !submitted) {
+        offset = 0;
+        for (let i = mCounter; i > 0; i--) {
+            offset += answers[i - 1].ans.length;
+        }
 
-        if (buttonReply) {
-            modalReplies.push(buttonReply);
-            if (buttonReply.customId === 'btnnext') {
-                replied = true;
-            }
-            else if (buttonReply.customId === 'btnedit') {
-                // loop
-                counter++;
-
-            }
-            else if (buttonReply.customId === 'btncancel') {
-                break;
+        if (!modals[mCounter]) {
+            modals[mCounter] = new ModalBuilder()
+                .setCustomId('modal_' + (mCounter))
+                .setTitle('Page ' + (mCounter + 1));
+            for (let i = 0; i < 5; i++) {
+                modals[mCounter].addComponents(
+                    new ActionRowBuilder()
+                        .addComponents(
+                            new TextInputBuilder()
+                                .setCustomId('textinputid_' + i)
+                                .setLabel('Field (Max 45 characters)')
+                                .setStyle(TextInputStyle.Short)
+                                .setMaxLength(45)
+                                .setRequired(false)
+                        )
+                );
             }
         }
         else {
-            await modalReplies[counter].editReply({ content: 'No button selected on time.', ephemeral: true, components: [] });
-            break;
+            if (editing) {
+                for (let i = 0; i < modals[mCounter].components.length; i++) {
+                    modals[mCounter].components[i].components[0].setValue(answers[mCounter].ans[i]);
+                }
+            }
+        }
+
+        await interactions[iCounter].showModal(modals[mCounter]).catch(err => { logger.error('interaction + ' + iCounter + 'showModal' + err); });
+        await interactions[iCounter].editReply({ components: [] }).catch(err => { logger.error('interaction + ' + iCounter + 'editReply' + err); });
+
+        const modalSubmit = await interactions[iCounter].awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => { logger.error('modalSubmit' + (iCounter + 1), err); });
+
+        if (modalSubmit) {
+
+            answers[mCounter] = { ans: modalSubmit.fields.fields.map(e => e.value) };
+            answers[mCounter].ans = answers[mCounter].ans.filter(e => e.length > 0);
+            if (answers[mCounter].ans.length > 0) {
+                btns.actionRow.setComponents(btns.next, btns.edit);
+                if ((offset + answers[mCounter].ans.length) >= requiredLength) {
+                    btns.actionRow.addComponents(btns.submit);
+                }
+
+                btns.actionRow.addComponents(btns.cancel);
+
+                if (!embeds[mCounter]) {
+                    embeds[mCounter] = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle('Review Page ' + (mCounter + 1))
+                        .setDescription('Review, edit, or submit.');
+                }
+                else {
+                    embeds[mCounter].data.fields = [];
+                }
+
+                for (let i = 0; i < 5; i++) {
+                    if (answers[mCounter].ans[i]) {
+                        embeds[mCounter].addFields({ name: 'Field: ' + (i + offset + 1), value: answers[mCounter].ans[i] });
+                    }
+                }
+            }
+            else {
+                btns.actionRow.setComponents(btns.edit, btns.cancel);
+                if (!embeds[mCounter]) {
+                    embeds[mCounter] = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle('Review Page ' + (mCounter + 1))
+                        .setDescription('Please include at least one field.');
+                }
+                else {
+                    embeds[mCounter].data.fields = [];
+                }
+            }
+            btns.actionRow.components.forEach(ele => {
+                // Below code is very specific with name... try to simplefy more
+                ele.setCustomId(ele.data.custom_id.slice(0, 10) + '_' + iCounter);
+            });
+
+            await modalSubmit.update({ embeds: [embeds[mCounter]], content: 'Review your questions.', components: [btns.actionRow] }).catch(err => { logger.error('modalSubmit ' + mCounter + 'buttonVerify ' + (iCounter + 1) + err); });
+            const buttonVerify = await modalSubmit.channel.awaitMessageComponent({ time: selectTime, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('buttonVerify ' + (iCounter + 1), err); });
+
+            if (buttonVerify) {
+                interactions.push(buttonVerify);
+                // these customId conditions are also very specific and rely on previous specific comment above
+                if (buttonVerify.customId === 'btnansnext_' + iCounter) {
+                    editing = false;
+                    mCounter++;
+                    iCounter++;
+                }
+                else if (buttonVerify.customId === 'btnansedit_' + iCounter) {
+                    editing = true;
+                    iCounter++;
+                }
+                else if (buttonVerify.customId === 'btnanssbmt_' + iCounter) {
+                    editing = false;
+                    submitted = true;
+                    await buttonVerify.update({ embeds: [], content: `Questions created!`, components: [] }).catch(err => { logger.error('buttonVerify ' + iCounter + ' submit ' + err); });
+                }
+                else if (buttonVerify.customId === 'btnanscncl_' + iCounter) {
+                    editing = false;
+                    canceled = true;
+                    await buttonVerify.update({ embeds: [], content: 'Interaction canceled. You can dismiss this message.', components: [] }).catch(err => { logger.error('buttonVerify ' + iCounter + ' cancel ' + err); });
+                }
+            }
+            else {
+                await modalSubmit.editReply({ content: 'No button selected on time.', ephemeral: true, components: [] });
+                canceled = true;
+            }
         }
     }
 
-    if (replied) {
-        return modalReplies[modalReplies.length - 1];
+    if (submitted) {
+        const data = { answers: [], submitted: true };
+        for (let i = 0; i < answers.length; i++) {
+            if (answers[i].ans.length > 0) {
+                data.answers = data.answers.concat(answers[i].ans);
+            }
+        }
+        console.log('Data: ', data);
+        return data;
     }
-} */
+    return;
+}
 
 // Make it so Edit button itself grabs whatever the last reply in array is, regardless of how old it is.
 // And have it "Edit" rather than update, so it remains in place on the channel. I thiiink that's how it can work.
