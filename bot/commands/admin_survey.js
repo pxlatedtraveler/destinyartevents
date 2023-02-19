@@ -404,6 +404,8 @@ async function loopEditableModal(interaction, modal, filter) {
 // Make it so Edit button itself grabs whatever the last reply in array is, regardless of how old it is.
 // And have it "Edit" rather than update, so it remains in place on the channel. I thiiink that's how it can work.
 
+// TODO: Clean up error logger structures
+
 // TODO: Test other scenarios of looping modal function (such as no modal added at start)
 // Test it out for Survey Edit command
 // And then move it over to Utility
