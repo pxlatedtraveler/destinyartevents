@@ -68,25 +68,6 @@ module.exports = {
                             .setStyle(ButtonStyle.Danger)
                     );
 
-                const rowReview = new ActionRowBuilder();
-
-                const buttonAnswersNext = new ButtonBuilder()
-                    .setCustomId('btnansnext')
-                    .setLabel('Next Page')
-                    .setStyle(ButtonStyle.Primary);
-                const buttonAnswersEdit = new ButtonBuilder()
-                    .setCustomId('btnansedit')
-                    .setLabel('Edit Answers')
-                    .setStyle(ButtonStyle.Primary);
-                const buttonAnswersSubmit = new ButtonBuilder()
-                    .setCustomId('btnanssbmt')
-                    .setLabel('Submit Answers')
-                    .setStyle(ButtonStyle.Success);
-                const buttonAnswersCancel = new ButtonBuilder()
-                    .setCustomId('btnanscncl')
-                    .setLabel('Cancel')
-                    .setStyle(ButtonStyle.Danger);
-
                 const modalName = new ModalBuilder()
                     .setCustomId('modalname')
                     .setTitle('Type in Survey id');
@@ -118,7 +99,7 @@ module.exports = {
                 const buttonCreate = new ButtonBuilder()
                     .setCustomId('btncreate')
                     .setLabel('Create Survey')
-                    .setStyle(ButtonStyle.Primary);
+                    .setStyle(ButtonStyle.Success);
 
                 const buttonEdit = new ButtonBuilder()
                     .setCustomId('btnedit')
@@ -134,7 +115,6 @@ module.exports = {
                     .setCustomId('btncancel')
                     .setLabel('Cancel')
                     .setStyle(ButtonStyle.Danger);
-                // const survey = new SurveyBuilder();
 
                 // API DB QUERY GET ENTRY, CHECK IF OBJ EXISTS
                 interaction.client._tempSurvey.size > 0 ? rowMain.addComponents(buttonCreate, buttonEdit, buttonDelete, buttonCancel) : rowMain.addComponents(buttonCreate, buttonCancel);
@@ -151,7 +131,7 @@ module.exports = {
 
                         modalName.setTitle('Input Survey Id and Name').addComponents(textInputId, textInputName);
 
-                        const results = await loopEditableModal(buttonReply, modalName, { actionRow: rowReview, next: buttonAnswersNext, edit: buttonAnswersEdit, submit: buttonAnswersSubmit, cancel: buttonAnswersCancel }, filter).catch(err => { logger.error('loopEditableModal create survey ' + err); });
+                        const results = await loopEditableModal(buttonReply, modalName, filter).catch(err => { logger.error('loopEditableModal create survey ' + err); });
 
                         if (results.submitted) {
                             const surveyId = results.answers[0];
@@ -253,13 +233,31 @@ module.exports = {
 
 /**
  * To be used after collecting a modalSubmit
- * @param {*} modalReply collected i.awaitModalSubmit
- * @param {String} content The string message to use
- * @param {[ActionRow]} components Row holding Next Edit Cancel buttons
- * @param {*} filter filter to use when collecting replies
- * @returns message reply or void
+ * @param {MessageComponentInteraction} interaction Starts off the chain of looping interactions
+ * @param {ModalBuilder} modal Optional modal that could be fed before dynamically created modals
+ * @param {callbackFunction} filter filter to use when awaiting message
+ * @returns {Object} message reply or void
  */
-async function loopEditableModal(interaction, modal, btns, filter) {
+async function loopEditableModal(interaction, modal, filter) {
+    const rowReview = new ActionRowBuilder();
+
+    const buttonNext = new ButtonBuilder()
+        .setCustomId('btnnext')
+        .setLabel('Next Page')
+        .setStyle(ButtonStyle.Primary);
+    const buttonEdit = new ButtonBuilder()
+        .setCustomId('btnedit')
+        .setLabel('Edit')
+        .setStyle(ButtonStyle.Primary);
+    const buttonSubmit = new ButtonBuilder()
+        .setCustomId('btnsbmt')
+        .setLabel('Submit')
+        .setStyle(ButtonStyle.Success);
+    const buttonCancel = new ButtonBuilder()
+        .setCustomId('btncncl')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Danger);
+
     const requiredLength = 3;
     const interactions = [interaction];
     let iCounter = interactions.length - 1;
@@ -317,12 +315,12 @@ async function loopEditableModal(interaction, modal, btns, filter) {
             answers[mCounter] = { ans: modalSubmit.fields.fields.map(e => e.value) };
             answers[mCounter].ans = answers[mCounter].ans.filter(e => e.length > 0);
             if (answers[mCounter].ans.length > 0) {
-                btns.actionRow.setComponents(btns.next, btns.edit);
+                rowReview.setComponents(buttonNext, buttonEdit);
                 if ((offset + answers[mCounter].ans.length) >= requiredLength) {
-                    btns.actionRow.addComponents(btns.submit);
+                    rowReview.addComponents(buttonSubmit);
                 }
 
-                btns.actionRow.addComponents(btns.cancel);
+                rowReview.addComponents(buttonCancel);
 
                 if (!embeds[mCounter]) {
                     embeds[mCounter] = new EmbedBuilder()
@@ -341,7 +339,7 @@ async function loopEditableModal(interaction, modal, btns, filter) {
                 }
             }
             else {
-                btns.actionRow.setComponents(btns.edit, btns.cancel);
+                rowReview.setComponents(buttonEdit, buttonCancel);
                 if (!embeds[mCounter]) {
                     embeds[mCounter] = new EmbedBuilder()
                         .setColor(0x0099FF)
@@ -352,32 +350,32 @@ async function loopEditableModal(interaction, modal, btns, filter) {
                     embeds[mCounter].data.fields = [];
                 }
             }
-            btns.actionRow.components.forEach(ele => {
+            rowReview.components.forEach(ele => {
                 // Below code is very specific with name... try to simplefy more
-                ele.setCustomId(ele.data.custom_id.slice(0, 10) + '_' + iCounter);
+                ele.setCustomId(ele.data.custom_id.slice(0, 7) + '_' + iCounter);
             });
 
-            await modalSubmit.update({ embeds: [embeds[mCounter]], content: 'Review your questions.', components: [btns.actionRow] }).catch(err => { logger.error('modalSubmit ' + mCounter + 'buttonVerify ' + (iCounter + 1) + err); });
+            await modalSubmit.update({ embeds: [embeds[mCounter]], content: 'Review your questions.', components: [rowReview] }).catch(err => { logger.error('modalSubmit ' + mCounter + 'buttonVerify ' + (iCounter + 1) + err); });
             const buttonVerify = await modalSubmit.channel.awaitMessageComponent({ time: selectTime, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('buttonVerify ' + (iCounter + 1), err); });
 
             if (buttonVerify) {
                 interactions.push(buttonVerify);
                 // these customId conditions are also very specific and rely on previous specific comment above
-                if (buttonVerify.customId === 'btnansnext_' + iCounter) {
+                if (buttonVerify.customId === 'btnnext_' + iCounter) {
                     editing = false;
                     mCounter++;
                     iCounter++;
                 }
-                else if (buttonVerify.customId === 'btnansedit_' + iCounter) {
+                else if (buttonVerify.customId === 'btnedit_' + iCounter) {
                     editing = true;
                     iCounter++;
                 }
-                else if (buttonVerify.customId === 'btnanssbmt_' + iCounter) {
+                else if (buttonVerify.customId === 'btnsbmt_' + iCounter) {
                     editing = false;
                     submitted = true;
                     await buttonVerify.update({ embeds: [], content: `Questions created!`, components: [] }).catch(err => { logger.error('buttonVerify ' + iCounter + ' submit ' + err); });
                 }
-                else if (buttonVerify.customId === 'btnanscncl_' + iCounter) {
+                else if (buttonVerify.customId === 'btncncl_' + iCounter) {
                     editing = false;
                     canceled = true;
                     await buttonVerify.update({ embeds: [], content: 'Interaction canceled. You can dismiss this message.', components: [] }).catch(err => { logger.error('buttonVerify ' + iCounter + ' cancel ' + err); });
@@ -405,6 +403,13 @@ async function loopEditableModal(interaction, modal, btns, filter) {
 
 // Make it so Edit button itself grabs whatever the last reply in array is, regardless of how old it is.
 // And have it "Edit" rather than update, so it remains in place on the channel. I thiiink that's how it can work.
+
+// TODO: Test other scenarios of looping modal function (such as no modal added at start)
+// Test it out for Survey Edit command
+// And then move it over to Utility
+// See how it can convert into survey-answering type for users answering survey created
+
+// TODO: Add date creation for survey Create command
 
 // TODO: Create one more button, View Event which shows an embed with survey questions
 // Also, figure out how mods can see answers. Can be posted in a channel, but should be stored in db.
