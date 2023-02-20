@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, ComponentType, TextInputBuilder, TextInputStyle, ModalBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { getTimeLeft, priviledgeCheck, refreshTimeout, setCooldown } = require('../Utils');
+const { createModalTextInputs, getTimeLeft, priviledgeCheck, refreshTimeout, setCooldown } = require('../Utils');
 const logger = require('../../util/logger.js');
 const { EmbedBuilder } = require('@discordjs/builders');
 
@@ -72,15 +72,54 @@ module.exports = {
                     .setCustomId('modalname')
                     .setTitle('Type in Survey id');
 
+                const modalDate = new ModalBuilder()
+                    .setCustomId('modaldate')
+                    .setTitle('Type in Date ranges');
+
+                const textInputYear = new ActionRowBuilder()
+                    .addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('textinputyear').setLabel('Start year').setStyle(TextInputStyle.Short)
+                            .setMinLength(4).setMaxLength(4).setRequired(true)
+                    );
+                const textInputStartMonth = new ActionRowBuilder()
+                    .addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('textinputstartmonth').setLabel('Start month').setStyle(TextInputStyle.Short)
+                            .setMinLength(1).setMaxLength(2).setRequired(true)
+                    );
+                const textInputStartDay = new ActionRowBuilder()
+                    .addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('textinputstartday').setLabel('Start day').setStyle(TextInputStyle.Short)
+                            .setMinLength(1).setMaxLength(2).setRequired(true)
+                    );
+                const textInputEndMonth = new ActionRowBuilder()
+                    .addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('textinputendmonth').setLabel('End month').setStyle(TextInputStyle.Short)
+                            .setMaxLength(2).setRequired(false)
+                    );
+                const textInputEndDay = new ActionRowBuilder()
+                    .addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('textinputendmonth').setLabel('End month').setStyle(TextInputStyle.Short)
+                            .setMaxLength(2).setRequired(false)
+                    );
+                    // logic will be that end date month and day are not required. Check if string length is empty. If so, set survey to never end.
+                    // If there is a valid date, and it is later than start date, set it.
+                    // Will need a kill-button to actually stop an infinite survey. A button that will show up when editing active and unstarted surveys.
+                    // Actually, add a pause button too that will be replaced with resume button too.
+                    // Unstarted survey (any): Edit > ID, Name, Questions, Start, End
+                    // Started limited: Edit > End, Pause/Resume
+                    // Started Unlimited: Edit > Pause/Resume, Archive
+
                 const textInputId = new ActionRowBuilder()
                     .addComponents(
                         new TextInputBuilder()
                             .setCustomId('textinputid')
                             .setLabel('Id (ie: fall2023)')
-                            .setStyle(TextInputStyle.Short)
-                            .setMinLength(1)
-                            .setMaxLength(25)
-                            .setRequired(true)
+                            .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(25).setRequired(true)
                     );
 
                 const textInputName = new ActionRowBuilder()
@@ -88,10 +127,7 @@ module.exports = {
                         new TextInputBuilder()
                             .setCustomId('textinputname')
                             .setLabel('Name (ie: Fall 2023)')
-                            .setStyle(TextInputStyle.Short)
-                            .setMinLength(1)
-                            .setMaxLength(50)
-                            .setRequired(true)
+                            .setStyle(TextInputStyle.Short).setMinLength(1).setMaxLength(50).setRequired(true)
                     );
 
                 const rowMain = new ActionRowBuilder();
@@ -240,7 +276,6 @@ module.exports = {
  */
 async function loopEditableModal(interaction, modal, filter) {
     const rowReview = new ActionRowBuilder();
-
     const buttonNext = new ButtonBuilder()
         .setCustomId('btnnext')
         .setLabel('Next Page')
@@ -280,22 +315,7 @@ async function loopEditableModal(interaction, modal, filter) {
         }
 
         if (!modals[mCounter]) {
-            modals[mCounter] = new ModalBuilder()
-                .setCustomId('modal_' + (mCounter))
-                .setTitle('Page ' + (mCounter + 1));
-            for (let i = 0; i < 5; i++) {
-                modals[mCounter].addComponents(
-                    new ActionRowBuilder()
-                        .addComponents(
-                            new TextInputBuilder()
-                                .setCustomId('textinputid_' + i)
-                                .setLabel('Field (Max 45 characters)')
-                                .setStyle(TextInputStyle.Short)
-                                .setMaxLength(45)
-                                .setRequired(false)
-                        )
-                );
-            }
+            modals[mCounter] = createModalTextInputs('modal_' + mCounter, 'Page ' + (mCounter + 1), { rows: 5, id: 'textinputid_', label: 'Field ', style: 'short', max: 45, required: false });
         }
         else {
             if (editing) {

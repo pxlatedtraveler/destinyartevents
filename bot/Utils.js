@@ -1,4 +1,4 @@
-const { Collection, inlineCode } = require('discord.js');
+const { Collection, inlineCode, ActionRowBuilder, TextInputBuilder, ModalBuilder, TextInputStyle } = require('discord.js');
 const logger = require('../util/logger.js');
 
 const Months = {
@@ -52,6 +52,42 @@ function arrayToString(array, inline, styling) {
 }
 
 /**
+ * @param {string} id id of the modal
+ * @param {string} title title of modal
+ * @param {string} config.id id of the inputBox before iteration
+ * @param {Object} config.label the label of the input box
+ * @param {number} config.max maximum characters allowed
+ * @param {number} config.min minimum characters required
+ * @param {boolean} config.required true if input is required
+ * @param {number} config.rows the number of inputs to create
+ * @param {TextInputStyle | string} config.style the style of input box
+ */
+function createModalTextInputs(id, title, config) {
+    const modal = new ModalBuilder()
+    .setCustomId(id)
+    .setTitle(title);
+    console.log('base modal created: ', modal);
+    for (let i = 0; i < config.rows; i++) {
+        modal.addComponents(
+            new ActionRowBuilder()
+                .addComponents(
+                    new TextInputBuilder()
+                        .setCustomId(config.id + i)
+                        .setLabel(config.label + i)
+                )
+        );
+        const textInputId = config.id + i;
+        const textInput = getModalComponentById(modal, textInputId);
+        if (config.style === 'short') textInput.setStyle(TextInputStyle.Short);
+        if (config.style === 'paragraph') textInput.setStyle(TextInputStyle.Paragraph);
+        if (config.min) textInput.setMinLength(config.min);
+        if (config.max) textInput.setMaxLength(config.max);
+        if (config.required) textInput.setRequired(config.required);
+    }
+    return modal;
+}
+
+/**
  * @param {MessageComponentInteraction} msg The interaction returned after user interacts
  * @returns {[ActionRow]} an array of ActionRows or empty array
  */
@@ -80,13 +116,21 @@ function getMessageFirstComponent(msg) {
     return rows[0].components[0];
 }
 
+function getModalComponentById(modal, id) {
+    for (let i = 0; i < modal.components.length; i++) {
+        const childWithId = modal.components[i].components.find(e => e.data.custom_id === id);
+        if (childWithId) return childWithId;
+    }
+    return;
+}
+
 function getTimeLeft(timeout, startTime) {
     return Math.ceil((timeout._idleTimeout / 1000) - (Date.now() - startTime) / 1000);
 }
 
 /**
  * https://help.bungie.net/hc/en-us/articles/360049199911-Destiny-2-Ritual-Reset-Guide
- * @param {*} date a date object to pass that will be checked against an active daylight savings date, July 1
+ * @param {Date} date a date object to pass that will be checked against an active daylight savings date, July 1
  * @returns {boolean}
  */
 function isDaylightSavings(date) {
@@ -128,4 +172,4 @@ function validateDate(month, day) {
 }
 
 
-module.exports = { Months, priviledgeCheck, arrayToString, getMessageComponents, getMessageComponentById, getMessageFirstComponent, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate };
+module.exports = { Months, priviledgeCheck, arrayToString, createModalTextInputs, getMessageComponents, getMessageComponentById, getMessageFirstComponent, getModalComponentById, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate };
