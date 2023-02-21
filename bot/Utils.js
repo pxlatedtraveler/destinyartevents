@@ -154,7 +154,7 @@ function setCooldown(interaction, cooldownTimer) {
     return timeout;
 }
 
-function validateDate(month, day) {
+function validateMonthDay(month, day) {
     if (month < 10 && month.length > 1) month = month.slice(1);
     if (day < 10 && day.length > 1) day = day.slice(1);
     const data = { m: month, d: day, valid: false, error: { code: 0, msg: `Month entry ${Months[month]} is invalid.` } };
@@ -172,4 +172,4 @@ function validateDate(month, day) {
 }
 
 
-module.exports = { Months, priviledgeCheck, arrayToString, createModalTextInputs, getMessageComponents, getMessageComponentById, getMessageFirstComponent, getModalComponentById, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateDate };
+module.exports = { Months, priviledgeCheck, arrayToString, createModalTextInputs, getMessageComponents, getMessageComponentById, getMessageFirstComponent, getModalComponentById, getTimeLeft, isDaylightSavings, refreshTimeout, setCooldown, validateMonthDay };

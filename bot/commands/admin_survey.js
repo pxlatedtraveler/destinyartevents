@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, ComponentType, TextInputBuilder, TextInputStyle, ModalBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
-const { createModalTextInputs, getTimeLeft, priviledgeCheck, refreshTimeout, setCooldown } = require('../Utils');
+const { Months, createModalTextInputs, getTimeLeft, priviledgeCheck, refreshTimeout, setCooldown, validateMonthDay } = require('../Utils');
 const logger = require('../../util/logger.js');
 const { EmbedBuilder } = require('@discordjs/builders');
 
@@ -103,7 +103,7 @@ module.exports = {
                 const textInputEndDay = new ActionRowBuilder()
                     .addComponents(
                         new TextInputBuilder()
-                            .setCustomId('textinputendmonth').setLabel('End month').setStyle(TextInputStyle.Short)
+                            .setCustomId('textinputendday').setLabel('End month').setStyle(TextInputStyle.Short)
                             .setMaxLength(2).setRequired(false)
                     );
                     // logic will be that end date month and day are not required. Check if string length is empty. If so, set survey to never end.
@@ -136,17 +136,14 @@ module.exports = {
                     .setCustomId('btncreate')
                     .setLabel('Create Survey')
                     .setStyle(ButtonStyle.Success);
-
                 const buttonEdit = new ButtonBuilder()
                     .setCustomId('btnedit')
                     .setLabel('Edit Survey')
                     .setStyle(ButtonStyle.Primary);
-
                 const buttonDelete = new ButtonBuilder()
                     .setCustomId('btndelete')
                     .setLabel('Delete Survey')
                     .setStyle(ButtonStyle.Danger);
-
                 const buttonCancel = new ButtonBuilder()
                     .setCustomId('btncancel')
                     .setLabel('Cancel')
@@ -166,16 +163,29 @@ module.exports = {
                     if (buttonReply.customId === 'btncreate') {
 
                         modalName.setTitle('Input Survey Id and Name').addComponents(textInputId, textInputName);
+                        textInputEndMonth.setLabel('End month (Leave blank if endless)');
+                        textInputEndDay.setLabel('End day (Leave blank if endless)');
+                        modalDate.setTitle('Set a Start and End date').addComponents(textInputYear, textInputStartMonth, textInputStartDay, textInputEndMonth, textInputEndDay);
 
-                        const results = await loopEditableModal(buttonReply, modalName, filter).catch(err => { logger.error('loopEditableModal create survey ' + err); });
+                        const dateResults = await loopModalValidation(buttonReply, modalDate, filter, validateSurveyDates);
+                        if (dateResults.submitted) {
+                            const questionResults = await loopEditableModal(dateResults.interactions[dateResults.counter], modalName, filter).catch(err => { logger.error('loopEditableModal create survey ' + err); });
 
-                        if (results.submitted) {
-                            const surveyId = results.answers[0];
-                            const surveyName = results.answers[1];
-                            const surveyQuestions = results.answers.splice(2);
+                            if (questionResults.submitted) {
+                                const surveyId = questionResults.answers[0];
+                                const surveyName = questionResults.answers[1];
+                                const surveyQuestions = questionResults.answers.splice(2);
 
-                            const survey = new SurveyBuilder(surveyId, surveyName, surveyQuestions);
-                            interaction.client._tempSurvey.set(survey.id, survey);
+                                const survey = new SurveyBuilder(surveyId, surveyName, surveyQuestions);
+                                interaction.client._tempSurvey.set(survey.id, survey);
+                                await questionResults.interactions[questionResults.counter].update({ embeds: [], content: `Questions created!`, components: [] }).catch(err => { logger.error('buttonVerify ' + questionResults.counter + ' submit ' + err); });
+                            }
+                            else {
+                                console.error('Failed getting questions');
+                            }
+                        }
+                        else {
+                            console.error('Failed getting dates');
                         }
                     }
 
@@ -272,9 +282,11 @@ module.exports = {
  * @param {MessageComponentInteraction} interaction Starts off the chain of looping interactions
  * @param {ModalBuilder} modal Optional modal that could be fed before dynamically created modals
  * @param {callbackFunction} filter filter to use when awaiting message
+ * @param {callbackFunction} validator optional, used to validate user input
  * @returns {Object} message reply or void
  */
 async function loopEditableModal(interaction, modal, filter) {
+    const data = {};
     const rowReview = new ActionRowBuilder();
     const buttonNext = new ButtonBuilder()
         .setCustomId('btnnext')
@@ -294,8 +306,8 @@ async function loopEditableModal(interaction, modal, filter) {
         .setStyle(ButtonStyle.Danger);
 
     const requiredLength = 3;
-    const interactions = [interaction];
-    let iCounter = interactions.length - 1;
+    data.interactions = [interaction];
+    let iCounter = data.interactions.length - 1;
 
     const modals = [modal];
     let mCounter = modals.length - 1;
@@ -325,10 +337,10 @@ async function loopEditableModal(interaction, modal, filter) {
             }
         }
 
-        await interactions[iCounter].showModal(modals[mCounter]).catch(err => { logger.error('interaction + ' + iCounter + 'showModal' + err); });
-        await interactions[iCounter].editReply({ components: [] }).catch(err => { logger.error('interaction + ' + iCounter + 'editReply' + err); });
+        await data.interactions[iCounter].showModal(modals[mCounter]).catch(err => { logger.error('interaction + ' + iCounter + 'showModal' + err); });
+        await data.interactions[iCounter].editReply({ components: [] }).catch(err => { logger.error('interaction + ' + iCounter + 'editReply' + err); });
 
-        const modalSubmit = await interactions[iCounter].awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => { logger.error('modalSubmit' + (iCounter + 1), err); });
+        const modalSubmit = await data.interactions[iCounter].awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => { logger.error('modalSubmit' + (iCounter + 1), err); });
 
         if (modalSubmit) {
 
@@ -379,7 +391,7 @@ async function loopEditableModal(interaction, modal, filter) {
             const buttonVerify = await modalSubmit.channel.awaitMessageComponent({ time: selectTime, filter, ComponentType: ComponentType.Button }).catch(err => { logger.error('buttonVerify ' + (iCounter + 1), err); });
 
             if (buttonVerify) {
-                interactions.push(buttonVerify);
+                data.interactions.push(buttonVerify);
                 // these customId conditions are also very specific and rely on previous specific comment above
                 if (buttonVerify.customId === 'btnnext_' + iCounter) {
                     editing = false;
@@ -393,7 +405,8 @@ async function loopEditableModal(interaction, modal, filter) {
                 else if (buttonVerify.customId === 'btnsbmt_' + iCounter) {
                     editing = false;
                     submitted = true;
-                    await buttonVerify.update({ embeds: [], content: `Questions created!`, components: [] }).catch(err => { logger.error('buttonVerify ' + iCounter + ' submit ' + err); });
+                    iCounter++;
+                    // await buttonVerify.update({ embeds: [], content: `Questions created!`, components: [] }).catch(err => { logger.error('buttonVerify ' + iCounter + ' submit ' + err); });
                 }
                 else if (buttonVerify.customId === 'btncncl_' + iCounter) {
                     editing = false;
@@ -409,7 +422,9 @@ async function loopEditableModal(interaction, modal, filter) {
     }
 
     if (submitted) {
-        const data = { answers: [], submitted: true };
+        data.submitted = true;
+        data.counter = iCounter;
+        data.answers = [];
         for (let i = 0; i < answers.length; i++) {
             if (answers[i].ans.length > 0) {
                 data.answers = data.answers.concat(answers[i].ans);
@@ -419,6 +434,160 @@ async function loopEditableModal(interaction, modal, filter) {
         return data;
     }
     return;
+}
+
+async function loopModalValidation(interaction, modal, filter, validator) {
+    // next, edit, cancel, conditional "use submit"
+    const data = {};
+    const rowReview = new ActionRowBuilder();
+    const buttonEdit = new ButtonBuilder()
+        .setCustomId('btnedit')
+        .setLabel('Edit')
+        .setStyle(ButtonStyle.Primary);
+    const buttonSubmit = new ButtonBuilder()
+        .setCustomId('btnsbmt')
+        .setLabel('Submit')
+        .setStyle(ButtonStyle.Success);
+    const buttonCancel = new ButtonBuilder()
+        .setCustomId('btncncl')
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Danger);
+    data.interactions = [interaction];
+    let iCounter = data.interactions.length - 1;
+    let answers = [];
+    let canceled = false;
+    data.submitted = false;
+
+    const fields = [];
+    for (let i = 0; i < modal.components.length; i++) {
+        fields[i] = modal.components[i].components[0].label;
+        console.log('Modal Fields (for embed): ', fields[i]);
+    }
+
+    const embed = new EmbedBuilder()
+        .setColor(0x0099FF)
+        .setTitle('Review Inputs')
+        .setDescription('Review, edit, or submit.');
+
+    while (!canceled && !data.submitted) {
+        embed.setFields();
+        // embed.data.fields = [];
+        await data.interactions[iCounter].showModal(modal);
+        const modalSubmit = await data.interactions[iCounter].awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => logger.error('loopModalValidation modalSubmit ' + err));
+        if (modalSubmit) {
+            if (validator) {
+                const results = validator(modalSubmit);
+                if (results.valid) {
+                    data.validatedData = results;
+                    answers = results.answers;
+                    rowReview.addComponents(buttonSubmit, buttonEdit, buttonCancel);
+                }
+                else {
+                    answers = modalSubmit.fields.fields.map(e => e.value);
+                    rowReview.addComponents(buttonEdit, buttonCancel);
+                }
+            }
+            else {
+                answers = modalSubmit.fields.fields.map(e => e.value);
+                rowReview.addComponents(buttonSubmit, buttonEdit, buttonCancel);
+            }
+
+            for (let i = 0; i < answers.length; i++) {
+                embed.addFields({ name: fields[i], value: answers[i] });
+            }
+
+            await modalSubmit.update({ embeds: [embed], content: 'Review your replies.', components: [rowReview] });
+            const buttonVerify = await modalSubmit.awaitMessageComponent({ time: selectTime, filter, ComponentType: ComponentType.Button }).catch(err => logger.error('loopModalValidation buttonVerify ' + err));
+
+            if (buttonVerify) {
+                data.interactions.push(buttonVerify);
+                if (buttonVerify.customId === 'btnedit') {
+                    iCounter++;
+                }
+                else if (buttonVerify.customId === 'btnsbmt') {
+                    data.submitted = true;
+                }
+                else if (buttonVerify.customId === 'btncncl') {
+                    canceled = true;
+                    await buttonVerify.update({ embeds: [], content: 'Interaction canceled. You can dismiss this message.', components: [] }).catch(err => { logger.error('loopModalValidation buttonVerify cancel' + err); });
+                }
+            }
+            else {
+                await modalSubmit.editReply({ content: 'No button selected on time.', ephemeral: true, components: [] });
+            }
+        }
+        else {
+            await data.interactions[iCounter].editReply({ content: 'No button selected on time.', ephemeral: true, components: [] });
+            canceled = true;
+        }
+    }
+
+    if (data.submitted) {
+        data.answers = answers;
+        return data;
+    }
+}
+
+/**
+ * Checks user-provided survey dates
+ * @param {MessageComponentInteraction} modalSubmit The modal inputs received from user
+ * @returns {Object} data includes {boolean} valid isEndless, {Date} startDate endDate, {[string]} answers, {Object} error
+ */
+function validateSurveyDates(modalSubmit) {
+    const data = { isEndless: false, startDate: null, endDate: null, answers: [], error: {} };
+    const startYear = modalSubmit.fields.getTextInputValue('textinputyear');
+    const startMonth = modalSubmit.fields.getTextInputValue('textinputstartmonth');
+    const startDay = modalSubmit.fields.getTextInputValue('textinputstartday');
+    const endMonth = modalSubmit.fields.getTextInputValue('textinputendmonth');
+    const endDay = modalSubmit.fields.getTextInputValue('textinputendday');
+
+    const validStartDate = validateMonthDay(startMonth, startDay);
+
+    if (validStartDate.valid) {
+        const currentYear = new Date().getFullYear();
+        if (startYear >= currentYear) {
+            data.startDate = new Date(startYear, validStartDate.m, validStartDate.d);
+        }
+        else {
+            data.error.msg = `Start year entry ${startYear} is a past year.`;
+        }
+
+        if (endMonth.length === 0 || endDay.length === 0) {
+            data.isEndless = true;
+            data.valid = true;
+            data.answers = [startYear, Months[validStartDate.m].name, validStartDate.d, 'No end date'];
+            // Success
+        }
+        else {
+            const validEndDate = validateMonthDay(endMonth, endDay);
+            if (validEndDate.valid) {
+                if (endMonth < startMonth) {
+                    const endYear = startYear - 1;
+                    data.endDate = new Date(endYear, validEndDate.m, validEndDate.d);
+                }
+                else {
+                    data.endDate = new Date(startYear, validEndDate.m, validEndDate.d);
+                }
+
+                if (data.endDate > data.startDate) {
+                    data.valid = true;
+                    data.answers = [startYear, Months[validStartDate.m].name, validStartDate.d, Months[validEndDate.m].name, validEndDate.d];
+                    // Success
+                }
+                else {
+                    data.valid = false;
+                    data.error.msg = `End date is ealier than start date.`;
+                }
+            }
+            else {
+                data.error.msg = validEndDate.error.msg;
+            }
+        }
+    }
+    else {
+        data.error.msg = validStartDate.error.msg;
+    }
+    return data;
 }
 
 // Make it so Edit button itself grabs whatever the last reply in array is, regardless of how old it is.

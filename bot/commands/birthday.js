@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, ActionRowBuilder, ModalBuilder, EmbedBuilder, UserSelectMenuBuilder, TextInputBuilder, TextInputStyle, ButtonBuilder, ButtonStyle, ComponentType } = require('discord.js');
-const { Months, getTimeLeft, refreshTimeout, setCooldown, validateDate } = require('../Utils');
+const { Months, getTimeLeft, refreshTimeout, setCooldown, validateMonthDay } = require('../Utils');
 const logger = require('../../util/logger.js');
 
 class Birthday {
@@ -137,7 +137,7 @@ module.exports = {
                         birthMonth = modalSubmit.fields.getTextInputValue('textinputmonth');
                         birthDay = modalSubmit.fields.getTextInputValue('textinputday');
 
-                        const validDate = validateDate(birthMonth, birthDay);
+                        const validDate = validateMonthDay(birthMonth, birthDay);
 
                         if (validDate.valid) {
                             birthMonth = validDate.m;
