@@ -163,8 +163,8 @@ module.exports = {
                     if (buttonReply.customId === 'btncreate') {
 
                         modalName.setTitle('Input Survey Id and Name').addComponents(textInputId, textInputName);
-                        textInputEndMonth.setLabel('End month (Leave blank if endless)');
-                        textInputEndDay.setLabel('End day (Leave blank if endless)');
+                        textInputEndMonth.components[0].setLabel('End month (Leave blank if endless)');
+                        textInputEndDay.components[0].setLabel('End day (Leave blank if endless)');
                         modalDate.setTitle('Set a Start and End date').addComponents(textInputYear, textInputStartMonth, textInputStartDay, textInputEndMonth, textInputEndDay);
 
                         const dateResults = await loopModalValidation(buttonReply, modalDate, filter, validateSurveyDates);
@@ -437,7 +437,6 @@ async function loopEditableModal(interaction, modal, filter) {
 }
 
 async function loopModalValidation(interaction, modal, filter, validator) {
-    // next, edit, cancel, conditional "use submit"
     const data = {};
     const rowReview = new ActionRowBuilder();
     const buttonEdit = new ButtonBuilder()
@@ -460,7 +459,7 @@ async function loopModalValidation(interaction, modal, filter, validator) {
 
     const fields = [];
     for (let i = 0; i < modal.components.length; i++) {
-        fields[i] = modal.components[i].components[0].label;
+        fields[i] = modal.components[i].components[0].data.label;
         console.log('Modal Fields (for embed): ', fields[i]);
     }
 
@@ -470,8 +469,8 @@ async function loopModalValidation(interaction, modal, filter, validator) {
         .setDescription('Review, edit, or submit.');
 
     while (!canceled && !data.submitted) {
-        embed.setFields();
-        // embed.data.fields = [];
+        // embed.setFields();
+        embed.data.fields = [];
         await data.interactions[iCounter].showModal(modal);
         const modalSubmit = await data.interactions[iCounter].awaitModalSubmit({ time: modalTime, filter, max: 1 }).catch(err => logger.error('loopModalValidation modalSubmit ' + err));
         if (modalSubmit) {
@@ -480,24 +479,28 @@ async function loopModalValidation(interaction, modal, filter, validator) {
                 if (results.valid) {
                     data.validatedData = results;
                     answers = results.answers;
-                    rowReview.addComponents(buttonSubmit, buttonEdit, buttonCancel);
+                    rowReview.setComponents(buttonSubmit, buttonEdit, buttonCancel);
+                    console.log('dates valid!');
                 }
                 else {
                     answers = modalSubmit.fields.fields.map(e => e.value);
-                    rowReview.addComponents(buttonEdit, buttonCancel);
+                    rowReview.setComponents(buttonEdit, buttonCancel);
+                    console.log('dates invalid!');
                 }
             }
             else {
                 answers = modalSubmit.fields.fields.map(e => e.value);
-                rowReview.addComponents(buttonSubmit, buttonEdit, buttonCancel);
+                rowReview.setComponents(buttonSubmit, buttonEdit, buttonCancel);
+                console.log('no validation needed!');
             }
 
             for (let i = 0; i < answers.length; i++) {
+                console.warn('answers: ', answers);
                 embed.addFields({ name: fields[i], value: answers[i] });
             }
 
             await modalSubmit.update({ embeds: [embed], content: 'Review your replies.', components: [rowReview] });
-            const buttonVerify = await modalSubmit.awaitMessageComponent({ time: selectTime, filter, ComponentType: ComponentType.Button }).catch(err => logger.error('loopModalValidation buttonVerify ' + err));
+            const buttonVerify = await modalSubmit.channel.awaitMessageComponent({ time: selectTime, filter, ComponentType: ComponentType.Button }).catch(err => logger.error('loopModalValidation buttonVerify ' + err));
 
             if (buttonVerify) {
                 data.interactions.push(buttonVerify);
@@ -534,7 +537,7 @@ async function loopModalValidation(interaction, modal, filter, validator) {
  * @returns {Object} data includes {boolean} valid isEndless, {Date} startDate endDate, {[string]} answers, {Object} error
  */
 function validateSurveyDates(modalSubmit) {
-    const data = { isEndless: false, startDate: null, endDate: null, answers: [], error: {} };
+    const data = { isEndless: false, startDate: null, endDate: null, answers: [], warn: [], error: {} };
     const startYear = modalSubmit.fields.getTextInputValue('textinputyear');
     const startMonth = modalSubmit.fields.getTextInputValue('textinputstartmonth');
     const startDay = modalSubmit.fields.getTextInputValue('textinputstartday');
@@ -546,27 +549,33 @@ function validateSurveyDates(modalSubmit) {
     if (validStartDate.valid) {
         const currentYear = new Date().getFullYear();
         if (startYear >= currentYear) {
-            data.startDate = new Date(startYear, validStartDate.m, validStartDate.d);
+            data.startDate = new Date(startYear, validStartDate.m - 1, validStartDate.d);
         }
         else {
-            data.error.msg = `Start year entry ${startYear} is a past year.`;
+            data.error.msg = `Start year entry ${startYear} is a past year. Edit to current or later.`;
+            logger.error(data.error.msg);
         }
 
         if (endMonth.length === 0 || endDay.length === 0) {
             data.isEndless = true;
             data.valid = true;
             data.answers = [startYear, Months[validStartDate.m].name, validStartDate.d, 'No end date'];
+            data.warn.push('End month or end day left blank. Survey will run endlessly until manually stopped.');
             // Success
         }
         else {
             const validEndDate = validateMonthDay(endMonth, endDay);
+
             if (validEndDate.valid) {
-                if (endMonth < startMonth) {
-                    const endYear = startYear - 1;
-                    data.endDate = new Date(endYear, validEndDate.m, validEndDate.d);
+
+                if (Number(endMonth) < Number(startMonth)) {
+                    const endYear = Number(startYear) + 1;
+                    data.endDate = new Date(endYear, validEndDate.m - 1, validEndDate.d);
+                    data.warn.push(`End month ${Months[validEndDate.m].name} is earlier than start month ${Months[validStartDate.m].name}. Setting end year to ${endYear}`);
+                    logger.warn(data.warn[data.warn.length - 1]);
                 }
                 else {
-                    data.endDate = new Date(startYear, validEndDate.m, validEndDate.d);
+                    data.endDate = new Date(startYear, validEndDate.m - 1, validEndDate.d);
                 }
 
                 if (data.endDate > data.startDate) {
@@ -576,19 +585,30 @@ function validateSurveyDates(modalSubmit) {
                 }
                 else {
                     data.valid = false;
-                    data.error.msg = `End date is ealier than start date.`;
+                    data.error.msg = `End date ${Months[validEndDate.m].name} ${validEndDate.d} ${data.endDate.getFullYear()} is ealier than start date ${Months[validStartDate.m].name} ${validStartDate.d} ${startYear}.`;
+                    logger.error('End date is ealier than start date.');
                 }
             }
             else {
                 data.error.msg = validEndDate.error.msg;
+                logger.error('validEndDate error: ' + validEndDate.error.msg);
             }
         }
     }
     else {
         data.error.msg = validStartDate.error.msg;
+        console.error('validStartDate error: ' + validStartDate.error.msg);
     }
+    console.log('validate survey data: ', data);
     return data;
 }
+
+// TODO: Add date creation for survey Create command
+// In progress. All is working well. Change logic in modal loop so if using a Validator callback,
+// have the validator handle the modal fields, maybe even formatting of addFields value.
+// Which means moving over the block currently handling it over to the specific conditional blocks
+// that check if there is a validator or not.
+// Add a condition for the condition of validator = true that checks IF a modal format was provided in the first place.
 
 // Make it so Edit button itself grabs whatever the last reply in array is, regardless of how old it is.
 // And have it "Edit" rather than update, so it remains in place on the channel. I thiiink that's how it can work.
@@ -599,8 +619,6 @@ function validateSurveyDates(modalSubmit) {
 // Test it out for Survey Edit command
 // And then move it over to Utility
 // See how it can convert into survey-answering type for users answering survey created
-
-// TODO: Add date creation for survey Create command
 
 // TODO: Create one more button, View Event which shows an embed with survey questions
 // Also, figure out how mods can see answers. Can be posted in a channel, but should be stored in db.
