@@ -169,6 +169,7 @@ module.exports = {
 
                         const dateResults = await loopModalValidation(buttonReply, modalDate, filter, validateSurveyDates);
                         if (dateResults.submitted) {
+                            console.log('Date Submitted!: ', dateResults.submitted);
                             const questionResults = await loopEditableModal(dateResults.interactions[dateResults.counter], modalName, filter).catch(err => { logger.error('loopEditableModal create survey ' + err); });
 
                             if (questionResults.submitted) {
@@ -494,6 +495,9 @@ async function loopModalValidation(interaction, modal, filter, validator) {
                     }
                 }
                 else {
+                    embed.setDescription('You have errors. Please edit or cancel.');
+                    embed.addFields({ name: 'Errors:', value: results.error.msg, inline: false });
+                    embed.addFields({ name: '--------------------', value: ' ', inline: false });
                     answers = modalSubmit.fields.fields.map(e => e.value);
                     rawAnswers = answers;
                     rowReview.setComponents(buttonEdit, buttonCancel);
@@ -507,9 +511,16 @@ async function loopModalValidation(interaction, modal, filter, validator) {
                 console.log('no validation needed!');
             }
 
-            for (let i = 0; i < answers.length; i++) {
-                console.warn('answers: ', answers);
-                embed.addFields({ name: fields[i], value: answers[i] });
+            answers = answers.filter(e => e.length > 0);
+            if (answers.length > 0) {
+                if (!validator) embed.setDescription('Review, edit, or submit.');
+                for (let i = 0; i < answers.length; i++) {
+                    console.warn('answers: ', answers);
+                    embed.addFields({ name: fields[i], value: answers[i] });
+                }
+            }
+            else {
+                if (!validator) embed.setDescription('No inputs. Hit submit to skip this section.');
             }
 
             await modalSubmit.update({ embeds: [embed], content: 'Review your replies.', components: [rowReview] });

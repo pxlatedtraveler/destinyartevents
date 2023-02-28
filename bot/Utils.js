@@ -157,7 +157,7 @@ function setCooldown(interaction, cooldownTimer) {
 function validateMonthDay(month, day) {
     if (month < 10 && month.length > 1) month = month.slice(1);
     if (day < 10 && day.length > 1) day = day.slice(1);
-    const data = { m: month, d: day, valid: false, error: { code: 0, msg: `Month entry ${Months[month]} is invalid.` } };
+    const data = { m: month, d: day, valid: false, error: { code: 0, msg: `Month entry ${month} is invalid.` } };
     if (Months[month]) {
         data.error.code = 1;
         data.error.msg = `Date entry ${day} is invalid for the month of ${Months[month].name}.`;

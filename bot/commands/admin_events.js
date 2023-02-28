@@ -734,10 +734,10 @@ module.exports = {
                                         stringsToPublish.CurrentValues = arrayToString(editData.currentValues, false, '\n');
                                         stringsToPublish.EditValues = arrayToString(editData.newValues, false, '\n');
 
-                                        embedConfirm.addFields({ name: 'Errors', value: stringsToPublish.Errors ? stringsToPublish.Errors : 'None', inline: false });
+                                        embedConfirm.addFields({ name: 'Errors:', value: stringsToPublish.Errors ? stringsToPublish.Errors : 'None', inline: false });
                                         embedConfirm.addFields({ name: '--------------------', value: ' ', inline: false });
-                                        embedConfirm.addFields({ name: 'Current Values', value: stringsToPublish.CurrentValues ? stringsToPublish.CurrentValues : 'None', inline: true });
-                                        embedConfirm.addFields({ name: 'New Values', value: stringsToPublish.EditValues ? stringsToPublish.EditValues : 'None', inline: true });
+                                        embedConfirm.addFields({ name: 'Current Values:', value: stringsToPublish.CurrentValues ? stringsToPublish.CurrentValues : 'None', inline: true });
+                                        embedConfirm.addFields({ name: 'New Values:', value: stringsToPublish.EditValues ? stringsToPublish.EditValues : 'None', inline: true });
 
                                         const lastInt = editCommands[editCommands.length - 1] ? editCommands[editCommands.length - 1] : stringSelectEdit;
                                         await lastInt.update({ embeds: [embedConfirm], components: [rowVerify] });
